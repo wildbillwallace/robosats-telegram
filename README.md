@@ -1,6 +1,6 @@
 # RoboSats Telegram Bridge
 
-**Buy bitcoin on RoboSats from your phone, even when you’re away from your computer.** Set up your own Telegram bot, select your RoboSats robot, and start **Browse offers on Telegram** on your Mac or Windows PC before leaving. Keep the computer online with Tor connected and the bridge running.
+**Buy bitcoin on RoboSats from your phone, even when you’re away from your computer.** After setup, start the bridge on your Mac or Windows PC. In the bridge’s terminal menu, choose **1. Browse offers on Telegram** and answer **yes** to enable two-way trade chat and payout. Once the terminal says browsing is running, leave it open and keep the computer online with Tor connected. When you’re ready to shop, open your bot chat in Telegram on your phone and tap **Browse offers**. You can do all your Telegram interaction from your phone.
 
 In Telegram you can browse and take an offer, get the bond invoice, set your Lightning routing budget, submit your payout invoice, chat with the seller, mark your payment as sent, and track the order through payout. On the same phone, use your Lightning wallet to pay the bond and create the payout invoice, and your usual payment app to pay the seller. The seller still releases escrow through RoboSats.
 
