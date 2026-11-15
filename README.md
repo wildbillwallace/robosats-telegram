@@ -8,7 +8,7 @@ When you’re ready to buy, open your private bot chat on your phone and tap **B
 
 The bridge uses the **RoboSats coordinator API** for order actions and supports both **Nostr trade chat** and **coordinator API chat**.
 
-This independent project supports **mainnet BTC buy orders taken from the public book** on **Temple of Sats** and **The Big Lake**. You can also pick up a supported order you started on desktop. For a dispute or an uncertain payment or order status, open RoboSats to check the trade before retrying.
+This independent project supports **mainnet BTC buy orders taken from the public book** on **Temple of Sats** and **The Big Lake**. You can switch devices during a trade in either direction. [Continue a desktop order on your phone](#resume-a-buy-order-from-desktop) or [open a Telegram-started order on desktop](#continue-a-telegram-order-on-desktop).
 
 ## 1. Install
 
@@ -45,6 +45,10 @@ Choose **4. Send Telegram test** in the bridge's terminal menu and wait for the 
 ### Resume a buy order from desktop
 
 Choose **Monitor an existing order** in Terminal, enter the RoboSats order number, and select its coordinator. The bridge checks your saved robot and can look for the one with that active order. Enable Telegram chat when prompted if you want the two-way controls. If the right robot is already selected for phone browsing, you can also tap **Resume desktop order** in Telegram.
+
+### Continue a Telegram order on desktop
+
+After taking an offer through Telegram, open RoboSats on your computer. Select the **same coordinator and robot**, then open the active order and match its number to the one shown in Telegram. Refresh the order status before continuing, especially if you already submitted an invoice or marked a payment as sent. Use RoboSats directly for disputes or when the result of a trade action is unclear.
 
 ### Finish the trade
 
