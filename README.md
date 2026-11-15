@@ -6,6 +6,8 @@ Before you leave, run the bridge on your Mac or Windows PC, choose **1. Browse o
 
 When you’re ready to buy, open your private bot chat on your phone and tap **Browse offers**. From Telegram, you can pick an offer, get the bond invoice, set your Lightning routing budget, submit your payout invoice, chat with the seller, confirm you’ve paid, and track the order through payout. Use your Lightning wallet and usual payment app on the same phone to make the payments. The seller releases escrow through RoboSats.
 
+The bridge uses the **RoboSats coordinator API** for order actions and supports both **Nostr trade chat** and **coordinator API chat**.
+
 This independent project supports **mainnet BTC buy orders taken from the public book** on **Temple of Sats** and **The Big Lake**. You can also pick up a supported order you started on desktop. For a dispute or an uncertain payment or order status, open RoboSats to check the trade before retrying.
 
 ## 1. Install
@@ -47,10 +49,24 @@ Choose **Monitor an existing order** in Terminal, enter the RoboSats order numbe
 ### Finish the trade
 
 1. When **Trade status** shows that RoboSats needs your payout invoice, tap **Lightning payout**. To change the routing allowance, tap **Change budget in sats** or **Change budget in ppm**, then use Telegram’s **Reply** gesture on the bot’s prompt and enter a whole number. Once the budget is set, create a Lightning invoice for the **exact sat amount in the latest prompt**. Paste it into your private bot chat and confirm.
-2. Once trade chat opens, send a normal Telegram message to reply to the seller. The bridge uses RoboSats API or Nostr chat according to the keys available for the order. Your bridged messages are readable in Telegram.
+2. When the trade is ready for payment, you can [message the seller directly from Telegram](#chat-with-the-seller-in-telegram).
 3. When RoboSats is ready for the agreed payment, send it in your usual payment app. Then tap **Confirm Sent** and complete the follow-up confirmation in Telegram. Watch for the final order status and check the receiving wallet for your Lightning payout.
 
 Keep the RoboSats order available for your first live trade. If Telegram is delayed or a trade action has an uncertain result, check the order in RoboSats before retrying.
+
+### Chat with the seller in Telegram
+
+Enable **two-way trade chat and payout** when starting the bridge, then continue on your phone. If you start by monitoring an existing order, enable Telegram chat when prompted. Once RoboSats has locked the seller’s escrow and accepted your payout invoice, **Trade status** shows the order is ready for payment. You can message the seller from then on, including after marking the payment as sent while you wait for release.
+
+**To start the conversation, just type a normal text message in your private bot chat.** You can send the first message, for example, “Hi, which network should I use?” Use the regular message box. Use Telegram’s **Reply** gesture when a trade prompt asks for it, such as when you’re setting a routing budget or typing `CONFIRM`. The bot handles trade buttons, slash commands, and Lightning invoices separately from ordinary seller messages.
+
+Seller replies appear in the same bot chat when the bridge receives them. If the bot says chat is unavailable, check **Trade status** and send the message again once chat is available. If delivery is uncertain, check the RoboSats chat before retrying.
+
+#### How the API and Nostr work together
+
+- **Order actions** use the coordinator API. This includes browsing and taking offers, checking escrow and order status, submitting payout invoices, and marking the payment as sent.
+- **Outgoing chat** uses the routes available for the order. When the order has both traders’ Nostr keys, the bridge tries the Nostr relays. When the coordinator also provides a peer chat key, the bridge also tries its encrypted API chat.
+- **Incoming chat** uses Nostr when the order provides both traders’ Nostr keys. For orders without those keys, it forwards replies from the coordinator’s API chat. If Nostr checks keep failing, the bot alerts you to check the chat in RoboSats.
 
 ## Restart and troubleshooting
 
