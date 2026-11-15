@@ -18,7 +18,7 @@ import time
 import requests
 from robosats_auth import decode_garage_key, garage_authorization, garage_robot_token, robot_authorization
 from robosats_bridge import BridgeError, ChatBridge, NostrChat, close_keys, open_keys
-from robosats_platform import lock_file, protect_settings, settings_directory, unprotect_settings
+from robosats_platform import keep_awake, lock_file, protect_settings, settings_directory, unprotect_settings
 
 ONION = 'http://ngdk7ocdzmz5kzsysa3om6du7ycj2evxp2f2olfkyq37htx3gllwp2yd.onion'
 COORDINATORS = {
@@ -631,11 +631,6 @@ def settings(path, cfg):
         save_config(path, cfg)
 
 
-def keep_awake():
-    executable = shutil.which('caffeinate')
-    return subprocess.Popen([executable, '-i', '-w', str(os.getpid())]) if executable else None
-
-
 def robot_signing_token(cfg, seed=None, interactive_search=True):
     try:
         if seed is None:
@@ -749,25 +744,22 @@ def interactive(args):
         set_saved_auth(config, args.coordinator, auth)
         save_config(args.config, config)
     print(message(args.order, current, True, COORDINATORS[args.coordinator][0]), flush=True)
-    awake = keep_awake()
-    bridge = temp = None
-    try:
-        if current['status'] not in TERMINAL and input('Enable Telegram chat for this order? Telegram will receive readable replies. [y/N]: ').strip().lower() in {'y', 'yes'}:
-            try:
-                temp, bridge = start_bridge(args, runtime, session_garage_seed(args.config, garage_seed))
-            except BridgeError as exc:
-                print(f'{exc} Continuing with alerts only.', flush=True)
-            else:
-                print(f'Chat enabled. In your private Telegram bot chat, type a normal message to reply to order #{args.order}.', flush=True)
-        garage_seed = None
-        run(args, runtime, bridge)
-    finally:
-        if bridge is not None:
-            bridge.lock.close()
-            close_keys(temp)
-        if awake:
-            awake.terminate()
-            awake.wait()
+    with keep_awake():
+        bridge = temp = None
+        try:
+            if current['status'] not in TERMINAL and input('Enable Telegram chat for this order? Telegram will receive readable replies. [y/N]: ').strip().lower() in {'y', 'yes'}:
+                try:
+                    temp, bridge = start_bridge(args, runtime, session_garage_seed(args.config, garage_seed))
+                except BridgeError as exc:
+                    print(f'{exc} Continuing with alerts only.', flush=True)
+                else:
+                    print(f'Chat enabled. In your private Telegram bot chat, type a normal message to reply to order #{args.order}.', flush=True)
+            garage_seed = None
+            run(args, runtime, bridge)
+        finally:
+            if bridge is not None:
+                bridge.lock.close()
+                close_keys(temp)
 
 
 def browse_offers(args, cfg):
@@ -859,22 +851,19 @@ def mobile_request(cfg, endpoint, params, payload=None):
 
 
 def run_handoff(args, cfg, garage_seed):
-    awake = keep_awake()
-    bridge = temp = None
-    try:
-        if garage_seed is not None:
-            try:
-                temp, bridge = start_bridge(args, cfg, garage_seed, interactive_search=False)
-            except BridgeError as exc:
-                bridge_telegram(cfg, 'sendMessage', {'chat_id': cfg['chat'], 'text': f'{exc} Continuing with status alerts.'})
-        run(args, cfg, bridge)
-    finally:
-        if bridge is not None:
-            bridge.lock.close()
-            close_keys(temp)
-        if awake:
-            awake.terminate()
-            awake.wait()
+    with keep_awake():
+        bridge = temp = None
+        try:
+            if garage_seed is not None:
+                try:
+                    temp, bridge = start_bridge(args, cfg, garage_seed, interactive_search=False)
+                except BridgeError as exc:
+                    bridge_telegram(cfg, 'sendMessage', {'chat_id': cfg['chat'], 'text': f'{exc} Continuing with status alerts.'})
+            run(args, cfg, bridge)
+        finally:
+            if bridge is not None:
+                bridge.lock.close()
+                close_keys(temp)
 
 
 def main():

@@ -1,11 +1,47 @@
-"""Platform-specific locking, settings storage, and GnuPG discovery."""
+"""Platform-specific sleep prevention, locking, settings, and GnuPG discovery."""
+from contextlib import contextmanager
 from pathlib import Path
 import base64
 import errno
 import json
 import os
 import shutil
+import subprocess
 import sys
+
+
+ES_CONTINUOUS = 0x80000000
+ES_SYSTEM_REQUIRED = 0x00000001
+
+
+@contextmanager
+def keep_awake():
+    """Request that the system stay awake for this session while the display can sleep."""
+    if os.name == 'nt':
+        import ctypes
+
+        set_execution_state = ctypes.windll.kernel32.SetThreadExecutionState
+        set_execution_state.argtypes = (ctypes.c_uint32,)
+        set_execution_state.restype = ctypes.c_uint32
+        previous = set_execution_state(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)
+        if not previous:
+            print('Windows could not prevent idle sleep. Check your power settings before leaving.',
+                  file=sys.stderr, flush=True)
+        try:
+            yield
+        finally:
+            if previous:
+                set_execution_state(ES_CONTINUOUS | previous)
+        return
+
+    executable = shutil.which('caffeinate')
+    awake = subprocess.Popen([executable, '-i', '-w', str(os.getpid())]) if executable else None
+    try:
+        yield
+    finally:
+        if awake is not None:
+            awake.terminate()
+            awake.wait()
 
 
 def settings_directory():
