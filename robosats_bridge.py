@@ -152,6 +152,7 @@ class ChatBridge:
         self.telegram_call, self.post_chat = telegram_call, post_chat
         self.nostr = nostr
         self.trade = None
+        self.seller_chat_announced = False
         self.started = math.floor(time.time())
         self.offset = None
         self.chat_id = int(cfg['chat'])
@@ -175,6 +176,15 @@ class ChatBridge:
     def send_telegram(self, text):
         self.telegram_call('sendMessage', {'chat_id': str(self.chat_id), 'text': text,
                                            'link_preview_options': {'is_disabled': True}})
+
+    def can_message_seller(self, active, peer_key, participants):
+        return active and bool(peer_key or (self.nostr is not None and participants))
+
+    def announce_seller_chat(self, active, peer_key, participants):
+        if not self.seller_chat_announced and self.can_message_seller(active, peer_key, participants):
+            self.send_telegram(f'{self.name} #{self.order} · Seller chat is open. '
+                               'Type a normal message here to start the conversation or reply.')
+            self.seller_chat_announced = True
 
     def forward(self, messages, peer_key):
         if not messages:
@@ -234,10 +244,10 @@ class ChatBridge:
             if len(body) > 1000:
                 self.send_telegram('Your reply was not sent. Send up to 1,000 characters at a time.')
                 continue
-            use_nostr = self.nostr is not None and bool(participants)
-            if not active or not (peer_key or use_nostr):
+            if not self.can_message_seller(active, peer_key, participants):
                 self.send_telegram(f'RoboSats #{self.order}: chat is unavailable. Your reply was not sent.')
                 continue
+            use_nostr = self.nostr is not None and bool(participants)
             nostr_ok = use_nostr and self.nostr.send(body, participants)
             api_ok = False
             if peer_key:

@@ -4,10 +4,46 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import Mock
 
-from robosats_bridge import ChatBridge, close_keys, open_keys
+from robosats_bridge import BridgeError, ChatBridge, close_keys, open_keys
+from robosats_monitor import poll_trade_updates
 
 
 class BridgeTests(unittest.TestCase):
+    def test_seller_chat_notice_requires_active_order_and_chat_route(self):
+        for peer_key, participants in [('api-key', None), (None, ('own', 'peer'))]:
+            with self.subTest(peer_key=peer_key), TemporaryDirectory() as directory:
+                def telegram(method, params):
+                    if method == 'getUpdates':
+                        return []
+                    return {'url': ''}
+
+                tg, post = Mock(side_effect=telegram), Mock()
+                bridge = ChatBridge({'chat': '123', 'bot': '555:test'}, 42, 'Temple',
+                                    directory, Mock(), tg, post, Mock())
+                with bridge.lock:
+                    poll_trade_updates(bridge, False, peer_key, participants)
+                    poll_trade_updates(bridge, True, None, None)
+                    self.assertFalse(any(call.args[0] == 'sendMessage' for call in tg.call_args_list))
+                    poll_trade_updates(bridge, True, peer_key, participants)
+                    poll_trade_updates(bridge, True, peer_key, participants)
+                    messages = [call.args[1] for call in tg.call_args_list if call.args[0] == 'sendMessage']
+                    self.assertEqual(len(messages), 1)
+                    self.assertEqual(messages[0]['chat_id'], '123')
+                    self.assertIn('Temple #42 · Seller chat is open', messages[0]['text'])
+                    post.assert_not_called()
+
+    def test_seller_chat_notice_can_retry_after_telegram_error(self):
+        with TemporaryDirectory() as directory:
+            tg = Mock(side_effect=[{'url': ''}, BridgeError('Temporary Telegram error'), {}])
+            bridge = ChatBridge({'chat': '123', 'bot': '555:test'}, 42, 'Temple',
+                                directory, Mock(), tg, Mock())
+            with bridge.lock:
+                with self.assertRaises(BridgeError):
+                    bridge.announce_seller_chat(True, 'api-key', None)
+                bridge.announce_seller_chat(True, 'api-key', None)
+                bridge.announce_seller_chat(True, 'api-key', None)
+                self.assertEqual(tg.call_count, 3)
+
     def test_only_current_private_owner_plain_text_sends(self):
         def update(number, sender=123, chat_type='private', date=1001, text='Hey, I’ll be home in 30 minutes.'):
             return {'update_id': number, 'message': {'from': {'id': sender},
