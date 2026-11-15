@@ -1,28 +1,31 @@
 # RoboSats Telegram Bridge
 
-Browse bitcoin buy offers, get order updates, and use RoboSats trade chat from your own private Telegram bot. The bridge runs on your computer and connects to RoboSats over Tor. This is an independent project for **mainnet BTC buy orders you take from the public book**. The bundled coordinators are **Temple of Sats** and **The Big Lake**.
+Take a RoboSats buy offer from your phone through your own Telegram bot. Browse and take offers, get the Lightning bond invoice, submit a payout invoice, chat with the seller, mark your payment as sent, and get a final status alert.
+
+**You pay the bond in your Lightning wallet and pay the seller in your usual payment app.** Telegram handles the RoboSats order controls. The bridge runs on your Mac and connects to RoboSats over Tor.
+
+This independent project supports **mainnet BTC buy orders taken from the public book** on **Temple of Sats** and **The Big Lake**. You can also resume a supported order you started in RoboSats on desktop.
 
 ## 1. Install on macOS
 
-Install [Homebrew](https://brew.sh/) if needed. Open Terminal and run the following.
+Install [Homebrew](https://brew.sh/) if you don't already have it. In Terminal, run:
 
 ```sh
 brew install python node tor gnupg
 brew services start tor
 git clone https://github.com/wildbillwallace/robosats-telegram.git
 cd robosats-telegram
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-npm ci --ignore-scripts
+bash start.sh
 ```
+
+The launcher creates an isolated Python environment and installs the Python and chat libraries on the first run. It then opens the setup prompts. You can use the same command every time.
 
 Tor normally listens on port **9050** with this setup. You can also use an existing local Tor SOCKS listener and enter its port during setup. For mobile access, leave the computer connected, the lid open, and the script running. The script uses macOS `caffeinate` while monitoring or browsing.
 
 ## 2. Create and connect your Telegram bot
 
 1. In Telegram, open [@BotFather](https://t.me/BotFather), send `/newbot`, and choose a display name and username. Copy the full token BotFather returns. It includes the numeric bot ID before the colon.
-2. In the project folder, run `python robosats_monitor.py`. Paste the token into the hidden terminal prompt. Enter your numeric private **chat ID** if you know it, or press Enter so the script can discover it.
+2. When `bash start.sh` opens setup, paste the token into the hidden terminal prompt. Enter your numeric private **chat ID** if you know it, or press Enter so the script can discover it.
 3. Follow the link shown in the terminal, tap **Start** in your private chat with your new bot, and send the one-time code shown in the terminal. Use the Telegram account you want to control the bot. The script verifies the bot ID and chat ID and sends a setup test message.
 4. At the **Garage Key** prompt, choose whether to save it locally. It is the `robo1…` key from your RoboSats Garage. Paste it into the hidden terminal prompt when asked. You can save it later from **Settings** or enter it for a session.
 
@@ -30,7 +33,7 @@ Telegram has separate [bot creation instructions](https://core.telegram.org/bots
 
 ## 3. Choose filters and use the bot
 
-Run `python robosats_monitor.py` from the activated virtual environment. The terminal menu offers **Browse offers on Telegram**, **Monitor an existing order**, **Settings**, and **Send Telegram test**.
+Run `bash start.sh` in the project folder. The terminal menu offers **Browse offers on Telegram**, **Monitor an existing order**, **Settings**, and **Send Telegram test**.
 
 - **Change filters.** In **Settings → Offer filters**, enter a currency code such as EUR, GBP, or USD. Type `?` to list supported codes. Enter a payment method such as SEPA or USDT, or leave the method blank to see any method. The initial filter is USD with any payment method. Each listing shows the actual methods from the offer.
 - **Take an offer on your phone.** First open your robot at the intended coordinator in RoboSats. In **Settings → Select robot for phone browsing**, select that coordinator and the robot's Garage slot, starting at 0, and repeat for any other coordinator you want to use. Choose **Browse offers on Telegram**, select and review an offer in Telegram, then explicitly confirm taking it. Pay the displayed bond invoice in your Lightning wallet, then tap **Continue order**.
@@ -44,18 +47,17 @@ Keep RoboSats available for the first live trade so you can cross-check the orde
 Open Terminal in the same folder again and run:
 
 ```sh
-source .venv/bin/activate
-python robosats_monitor.py
+bash start.sh
 ```
 
-Press **Ctrl+C** to stop. If Tor is unavailable, check that it is running and confirm the SOCKS port under **Settings**. If mobile actions or Nostr chat cannot start, check that `gpg --version` and `node --version` work and rerun `npm ci --ignore-scripts` in this folder.
+Press **Ctrl+C** to stop. If Tor is unavailable, check that it is running and confirm the SOCKS port under **Settings**. If mobile actions or Nostr chat cannot start, check that `gpg --version` and `node --version` work. Run `bash start.sh` again after installing any missing tools.
 
-For a read-only authenticated check, use `python robosats_monitor.py check --coordinator temple --order ORDER_NUMBER` after selecting a robot for that coordinator. Use `lake` for The Big Lake.
+For a read-only authenticated check, use `bash start.sh check --coordinator temple --order ORDER_NUMBER` after selecting a robot for that coordinator. Use `lake` for The Big Lake.
 
 ## Local tests
 
 ```sh
-python -m unittest discover
+.venv/bin/python -m unittest discover
 npm test
 ```
 
