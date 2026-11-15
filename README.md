@@ -1,6 +1,8 @@
 # RoboSats Telegram Bridge
 
-**Set up the bridge on your computer, then start and finish a RoboSats purchase from your phone.** Before you leave, run the bridge on your Mac or Windows PC, choose **1. Browse offers on Telegram** in the terminal menu, and answer **yes** to enable trade chat and payout. Once the terminal says browsing is running, leave it open with the computer online and Tor connected. The bridge automatically prevents idle sleep using macOS `caffeinate` or the built-in Windows equivalent. You can lock the computer and let the screen turn off. Leave the lid open if closing it puts your laptop to sleep.
+**Start the bridge on your computer, walk away, and buy bitcoin on RoboSats from your phone.** Use your own Telegram bot to take an offer and manage the trade all the way to your Lightning payout.
+
+Before you leave, run the bridge on your Mac or Windows PC, choose **1. Browse offers on Telegram** in the terminal menu, and answer **yes** to enable trade chat and payout. Once the terminal says browsing is running, leave it open with the computer online and Tor connected. The bridge automatically prevents idle sleep using macOS `caffeinate` or the built-in Windows equivalent. You can lock the computer and let the screen turn off. Leave the lid open if closing it puts your laptop to sleep.
 
 When you’re ready to buy, open your private bot chat on your phone and tap **Browse offers**. From Telegram, you can pick an offer, get the bond invoice, set your Lightning routing budget, submit your payout invoice, chat with the seller, confirm you’ve paid, and track the order through payout. Use your Lightning wallet and usual payment app on the same phone to make the payments. The seller releases escrow through RoboSats.
 
