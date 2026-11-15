@@ -2,12 +2,47 @@ from pathlib import Path
 import os
 import tempfile
 import unittest
+from unittest.mock import Mock, patch
 
 from robosats_monitor import load_config, save_config
-from robosats_platform import lock_file
+import robosats_platform as platform
+from robosats_platform import keep_awake, lock_file
 
 
 class PlatformTests(unittest.TestCase):
+    def test_caffeinate_released_on_interruption(self):
+        process = Mock()
+        with patch.object(platform.os, 'name', 'posix'), \
+             patch.object(platform.shutil, 'which', return_value='/usr/bin/caffeinate'), \
+             patch.object(platform.subprocess, 'Popen', return_value=process) as launch:
+            with self.assertRaises(KeyboardInterrupt), keep_awake():
+                launch.assert_called_once_with(['/usr/bin/caffeinate', '-i', '-w', str(os.getpid())])
+                process.terminate.assert_not_called()
+                raise KeyboardInterrupt
+        process.terminate.assert_called_once()
+        process.wait.assert_called_once()
+
+    @unittest.skipUnless(os.name == 'nt', 'Windows power request integration test')
+    def test_windows_power_request_released_on_interruption(self):
+        import ctypes
+
+        set_state = ctypes.windll.kernel32.SetThreadExecutionState
+        set_state.argtypes = (ctypes.c_uint32,)
+        set_state.restype = ctypes.c_uint32
+        continuous, system = platform.ES_CONTINUOUS, platform.ES_SYSTEM_REQUIRED
+        previous = set_state(continuous)
+        self.assertNotEqual(previous, 0)
+        try:
+            with self.assertRaises(KeyboardInterrupt), keep_awake():
+                active = set_state(continuous | system)
+                self.assertEqual(active & system, system)
+                raise KeyboardInterrupt
+            released = set_state(continuous)
+            self.assertNotEqual(released, 0)
+            self.assertEqual(released & system, 0)
+        finally:
+            set_state(continuous | previous)
+
     def test_exclusive_lock_releases_on_close(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'bridge.lock'

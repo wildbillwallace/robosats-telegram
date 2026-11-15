@@ -15,7 +15,7 @@ Choose the guide for your computer:
 | macOS | [macOS setup](SETUP-MACOS.md) | `bash start.sh` |
 | Windows 10 or 11 | [Windows setup](SETUP-WINDOWS.md) | `.\start-windows.cmd` in PowerShell |
 
-On both platforms, use Brave’s private Tor window, Tor Browser, or standalone Tor. The bridge finds Brave’s changing local port automatically. Keep the computer awake and online, with Tor connected and the bridge running.
+On both platforms, use Brave’s private Tor window, Tor Browser, or standalone Tor. The bridge finds Brave’s changing local port automatically. While you browse offers or monitor an order from Telegram, the bridge prevents idle sleep and lets the screen turn off. Keep the computer online with Tor connected. Leave the laptop lid open if closing it puts the computer to sleep.
 
 ## 2. Create and connect your Telegram bot
 

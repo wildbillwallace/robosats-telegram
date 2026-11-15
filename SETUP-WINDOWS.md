@@ -57,4 +57,4 @@ On later runs, activate the environment and run only `python robosats_monitor.py
 
 ## 4. Pair your bot
 
-Continue with [Create and connect your Telegram bot](README.md#2-create-and-connect-your-telegram-bot). To use it from your phone, leave Windows awake and online, Tor connected, and the bridge running. Press **Ctrl+C** in PowerShell when you want to stop it.
+Continue with [Create and connect your Telegram bot](README.md#2-create-and-connect-your-telegram-bot). While the bridge browses offers or monitors an order, it asks Windows to prevent idle sleep and lets the screen turn off. Keep Windows online and Tor connected. Leave the lid open if closing it puts your laptop to sleep. Press **Ctrl+C** in PowerShell to stop the bridge and release its sleep prevention.

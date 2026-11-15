@@ -2,15 +2,12 @@
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 import json
-import shutil
 from pathlib import Path
 import re
-import subprocess
-import os
 import time
 
 from robosats_bridge import BridgeError
-from robosats_platform import lock_file
+from robosats_platform import keep_awake, lock_file
 
 
 SELL = 1  # The maker sells BTC. The user buys it.
@@ -179,9 +176,7 @@ def run_offer_browser(cfg, directory, coordinators, get, tor_port, telegram, mak
                                lambda alias: book(cfg, get, alias), lambda method, params: telegram(cfg, method, params))
         currency, method = filters(cfg)
         browser.filter_label = f'{currency} · {method or "any payment method"}'
-        executable = shutil.which('caffeinate')
-        awake = subprocess.Popen([executable, '-i', '-w', str(os.getpid())]) if executable else None
-        try:
+        with keep_awake():
             buttons = browser.navigation() if hasattr(browser, 'navigation') else [[
                 {'text': 'Browse offers', 'callback_data': 'offers:0'}]]
             browser.send(f'Buy BTC · {browser.filter_label}', buttons)
@@ -201,7 +196,3 @@ def run_offer_browser(cfg, directory, coordinators, get, tor_port, telegram, mak
                 except BridgeError as exc:
                     print(str(exc), flush=True)
                     time.sleep(5)
-        finally:
-            if awake:
-                awake.terminate()
-                awake.wait()

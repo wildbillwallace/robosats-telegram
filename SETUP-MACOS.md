@@ -47,7 +47,7 @@ python robosats_monitor.py
 
 Confirm the first line shows Python 3.10 or newer. The install command adds the Python dependencies to your active environment. On later runs, activate that environment and run only `python robosats_monitor.py` from the project folder. If that environment uses `python3`, use `python3` in these commands.
 
-For mobile access, leave the Mac awake and connected, with the bridge running. If you use Brave or Tor Browser for Tor, leave that window connected. The bridge uses macOS `caffeinate` when it is available.
+While the bridge browses offers or monitors an order, it uses macOS `caffeinate` to prevent idle sleep and lets the screen turn off. Keep your Mac online and Tor connected. Leave the lid open if closing it puts your Mac to sleep. Press **Ctrl+C** in Terminal to stop the bridge and release its sleep prevention.
 
 Continue with [Create and connect your Telegram bot](README.md#2-create-and-connect-your-telegram-bot).
 
