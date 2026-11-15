@@ -1,7 +1,6 @@
 """Browse public BTC sell offers from a private Telegram chat."""
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
-import fcntl
 import json
 import shutil
 from pathlib import Path
@@ -11,6 +10,7 @@ import os
 import time
 
 from robosats_bridge import BridgeError
+from robosats_platform import lock_file
 
 
 SELL = 1  # The maker sells BTC. The user buys it.
@@ -166,11 +166,11 @@ def run_offer_browser(cfg, directory, coordinators, get, tor_port, telegram, mak
     bot_id = re.fullmatch(r'(\d+):[A-Za-z0-9_-]+', cfg['bot'])
     if chat <= 0 or not bot_id:
         raise BridgeError('Offers require a configured private Telegram bot chat.')
-    with (Path(directory) / f'bridge-{bot_id[1]}.lock').open('a') as lock:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            raise BridgeError('Stop the other Telegram chat monitor before browsing offers.') from None
+    try:
+        lock = lock_file(Path(directory) / f'bridge-{bot_id[1]}.lock')
+    except BlockingIOError:
+        raise BridgeError('Stop the other Telegram chat monitor before browsing offers.') from None
+    with lock:
         cfg['port'] = tor_port(cfg['port'])
         hook = telegram(cfg, 'getWebhookInfo', {})
         if not isinstance(hook, dict) or hook.get('url'):

@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -67,7 +68,8 @@ class Tests(unittest.TestCase):
             good=Mock(); m.flush(state,p,good)
             self.assertEqual(good.call_count,2)
             self.assertEqual(json.loads(p.read_text())['pending'],[])
-            self.assertEqual(p.stat().st_mode & 0o777,0o600)
+            if os.name != 'nt':
+                self.assertEqual(p.stat().st_mode & 0o777,0o600)
 
     def test_initial_already_locked(self):
         self.assertIn('escrow is locked',m.message(876543,{'status':9,'escrow_locked':True},True))
@@ -108,6 +110,7 @@ class Tests(unittest.TestCase):
         self.assertNotIn('private', state['pending'][0])
         self.assertEqual(state['chat_offset'], 4)
 
+    @unittest.skipIf(os.name == 'nt', 'Brave port discovery is macOS-specific')
     def test_old_port_replaced_by_new_brave_socks_port(self):
         listeners = 'p1\nctor\nn127.0.0.1:9999\np2\nctor-darwin-brave-0\nn127.0.0.1:51000\nn127.0.0.1:51001\n'
         with patch.object(m.subprocess, 'run', return_value=Mock(stdout=listeners)), \

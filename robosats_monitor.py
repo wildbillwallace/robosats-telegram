@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """RoboSats taker monitor with optional Telegram text chat."""
 import argparse
-import fcntl
 import getpass
 import hashlib
 import json
@@ -19,6 +18,7 @@ import time
 import requests
 from robosats_auth import decode_garage_key, garage_authorization, garage_robot_token, robot_authorization
 from robosats_bridge import BridgeError, ChatBridge, NostrChat, close_keys, open_keys
+from robosats_platform import lock_file, protect_settings, settings_directory, unprotect_settings
 
 ONION = 'http://ngdk7ocdzmz5kzsysa3om6du7ycj2evxp2f2olfkyq37htx3gllwp2yd.onion'
 COORDINATORS = {
@@ -26,7 +26,7 @@ COORDINATORS = {
     'lake': ('The Big Lake', 'http://4t4jxmivv6uqej6xzx2jx3fxh75gtt65v3szjoqmc4ugdlhipzdat6yd.onion'),
 }
 
-HOME = Path.home() / 'Library/Application Support/RoboSatsTelegram' if sys.platform == 'darwin' else Path.home() / '.config/robosats-telegram'
+HOME = settings_directory()
 LABELS = dict(enumerate([
     'Waiting for maker bond', 'Public', 'Paused', 'Waiting for taker bond',
     'Cancelled', 'Expired', 'Waiting for escrow and buyer invoice',
@@ -47,15 +47,21 @@ class RobotMismatch(MonitorError):
 
 def save(path, value):
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    with NamedTemporaryFile(mode='w', dir=path.parent, prefix='.settings-', delete=False) as out:
+    with NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent,
+                            prefix='.settings-', delete=False) as out:
         temp = Path(out.name)
-        try:
+    try:
+        with temp.open('w', encoding='utf-8') as out:
             json.dump(value, out)
             out.flush()
             os.fsync(out.fileno())
-            os.replace(temp, path)
-        finally:
-            temp.unlink(missing_ok=True)
+        os.replace(temp, path)
+    finally:
+        temp.unlink(missing_ok=True)
+
+
+def save_config(path, value):
+    save(path, protect_settings(value) if os.name == 'nt' else value)
 
 
 def prompt_auth(config, order, remember_seed):
@@ -130,8 +136,8 @@ def setup(path):
         cfg['garage_key'] = read_garage_key()
     bridge_telegram(runtime, 'sendMessage', {'chat_id': cfg['chat'],
                     'text': 'Setup complete. This test did not access a RoboSats order.'})
-    save(path, cfg)
-    print(f'Settings saved locally with owner-only permissions in {path}.')
+    save_config(path, cfg)
+    print(f'Settings saved locally in {path}.')
 
 
 def socks_listens(port):
@@ -148,6 +154,8 @@ def tor_port(preferred):
     for port in dict.fromkeys((preferred, 9050, 9150)):
         if socks_listens(port):
             return port
+    if os.name == 'nt':
+        raise MonitorError('Open Tor Browser, click Connect, and keep it open. The usual Tor ports are 9050 and 9150.')
     try:
         result = subprocess.run(
             ['/usr/sbin/lsof', '-nP', '-a', '-c', 'tor', '-iTCP', '-sTCP:LISTEN', '-Fpcn'],
@@ -222,7 +230,7 @@ def coordinator_request(cfg, endpoint, params, chat_payload=None, *, order_paylo
             [shutil.which('curl') or '/usr/bin/curl', '-q', '--config', '-', '--silent', '--show-error',
              '--socks5-hostname', f"127.0.0.1:{int(cfg['port'])}", '--noproxy', '',
              '--max-time', '45', '--write-out', '\n%{http_code}', url],
-            input=header, capture_output=True, text=True, timeout=50)
+            input=header, capture_output=True, text=True, encoding='utf-8', timeout=50)
     except (OSError, subprocess.TimeoutExpired):
         raise MonitorError('Order connection through Tor timed out or could not start.') from None
     if result.returncode:
@@ -373,71 +381,72 @@ def run(args, cfg, bridge=None):
         print('Authenticated GET succeeded. No Telegram message sent.')
         return
     statepath = args.config.parent / f'{args.coordinator}-{args.order}.json'
-    lock = open(statepath.with_suffix('.lock'), 'a')
     try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        lock = lock_file(statepath.with_suffix('.lock'))
     except BlockingIOError:
         raise MonitorError('Another monitor is already running for this order.') from None
-    state = json.loads(statepath.read_text()) if statepath.exists() else {'observed': None, 'pending': []}
-    failures = 0
-    print(f'Monitoring {name} #{args.order} every {args.interval}s through Tor. Ctrl-C stops.')
-    while True:
-        try:
-            cfg['port'] = tor_port(cfg['port'])
-            current = fetch(cfg, args.order, include_peer=True)
-            peer = current.pop('peer', None)
-            participants = current.pop('nostr_participants', None)
-            if state.pop('outage', False):
-                state['pending'].append(f'{name} #{args.order}: order monitoring connection recovered.')
-            enqueue(state, current, args.order, name)
-            failures = 0
-            peer_key = None
-            if current['status'] in CHAT_STATUSES:
-                if 'chat_baseline' not in state:
-                    state['chat_baseline'] = True
-                try:
-                    peer_key = poll_chat(cfg, args.order, peer, state, initial=state['chat_baseline'],
-                                         bridge=bridge, forward=not (bridge and bridge.nostr and participants))
-                    state['chat_baseline'] = False
-                    state.pop('chat_error', None)
-                except (MonitorError, BridgeError) as exc:
-                    print(str(exc), flush=True)
-                    state['chat_error'] = state.get('chat_error', 0) + 1
-                    if state['chat_error'] == 3:
-                        state['pending'].append(f'{name} #{args.order}: private chat checks are failing. Open RoboSats to check for replies.')
-            else:
-                # If we saw the order before chat opened, the first message is new.
-                state.setdefault('chat_baseline', False)
-            if bridge is not None:
-                poll_trade_updates(bridge, current['status'] in {9, 10}, peer_key, participants)
-            if current['status'] in CHAT_STATUSES:
-                if bridge and bridge.nostr and participants:
+    with lock:
+        state = json.loads(statepath.read_text()) if statepath.exists() else {'observed': None, 'pending': []}
+        failures = 0
+        print(f'Monitoring {name} #{args.order} every {args.interval}s through Tor. Ctrl-C stops.')
+        while True:
+            try:
+                cfg['port'] = tor_port(cfg['port'])
+                current = fetch(cfg, args.order, include_peer=True)
+                peer = current.pop('peer', None)
+                participants = current.pop('nostr_participants', None)
+                if state.pop('outage', False):
+                    state['pending'].append(f'{name} #{args.order}: order monitoring connection recovered.')
+                enqueue(state, current, args.order, name)
+                failures = 0
+                peer_key = None
+                if current['status'] in CHAT_STATUSES:
+                    if 'chat_baseline' not in state:
+                        state['chat_baseline'] = True
                     try:
-                        bridge.poll_nostr(participants, state, lambda: save(statepath, state))
-                        state.pop('nostr_error', None)
-                    except BridgeError as exc:
+                        peer_key = poll_chat(cfg, args.order, peer, state, initial=state['chat_baseline'],
+                                             bridge=bridge, forward=not (bridge and bridge.nostr and participants))
+                        state['chat_baseline'] = False
+                        state.pop('chat_error', None)
+                    except (MonitorError, BridgeError) as exc:
                         print(str(exc), flush=True)
-                        state['nostr_error'] = state.get('nostr_error', 0) + 1
-                        if state['nostr_error'] == 3:
-                            state['pending'].append(f'{name} #{args.order}: Nostr chat checks are failing. Check RoboSats for replies.')
-        except MonitorError as exc:
-            failures += 1
-            print(str(exc), flush=True)
-            if failures >= 3 and not state.get('outage'):
-                state['outage'] = True
-                state['pending'].append(f'{name} #{args.order}: order checks are failing. Open RoboSats and check manually.')
-        save(statepath, state)
-        try:
-            flush(state, statepath, lambda text: telegram(session(cfg['port']), cfg, text))
-        except MonitorError as exc:
-            print(str(exc), flush=True)
-        if failures == 0 and state['observed']['status'] in TERMINAL and not state['pending']:
-            print('Terminal order status delivered; monitor stopped.')
-            return
-        poll = None
-        if bridge is not None and failures == 0 and current['status'] not in TERMINAL:
-            poll = lambda: poll_trade_updates(bridge, current['status'] in {9, 10}, peer_key, participants)
-        wait_for_next_check(min(300, args.interval * (2 ** min(failures, 3))), poll)
+                        state['chat_error'] = state.get('chat_error', 0) + 1
+                        if state['chat_error'] == 3:
+                            state['pending'].append(f'{name} #{args.order}: private chat checks are failing. Open RoboSats to check for replies.')
+                else:
+                    # If we saw the order before chat opened, the first message is new.
+                    state.setdefault('chat_baseline', False)
+                if bridge is not None:
+                    poll_trade_updates(bridge, current['status'] in {9, 10}, peer_key, participants)
+                if current['status'] in CHAT_STATUSES:
+                    if bridge and bridge.nostr and participants:
+                        try:
+                            bridge.poll_nostr(participants, state, lambda: save(statepath, state))
+                            state.pop('nostr_error', None)
+                        except BridgeError as exc:
+                            print(str(exc), flush=True)
+                            state['nostr_error'] = state.get('nostr_error', 0) + 1
+                            if state['nostr_error'] == 3:
+                                state['pending'].append(f'{name} #{args.order}: Nostr chat checks are failing. Check RoboSats for replies.')
+            except MonitorError as exc:
+                failures += 1
+                print(str(exc), flush=True)
+                if failures >= 3 and not state.get('outage'):
+                    state['outage'] = True
+                    state['pending'].append(f'{name} #{args.order}: order checks are failing. Open RoboSats and check manually.')
+            save(statepath, state)
+            try:
+                flush(state, statepath, lambda text: telegram(session(cfg['port']), cfg, text))
+            except MonitorError as exc:
+                print(str(exc), flush=True)
+            if failures == 0 and state['observed']['status'] in TERMINAL and not state['pending']:
+                print('Terminal order status delivered; monitor stopped.')
+                return
+            poll = None
+            if bridge is not None and failures == 0 and current['status'] not in TERMINAL:
+                poll = lambda: poll_trade_updates(bridge, current['status'] in {9, 10}, peer_key, participants)
+            wait_for_next_check(min(300, args.interval * (2 ** min(failures, 3))), poll)
+
 
 def saved_auth(config, coordinator):
     if coordinator == 'temple':
@@ -455,9 +464,10 @@ def set_saved_auth(config, coordinator, auth):
 def load_config(path):
     if not path.exists():
         raise MonitorError('First run only: use python robosats_monitor.py setup to save your Telegram and Tor settings.')
-    if path.stat().st_mode & 0o077:
+    if os.name != 'nt' and path.stat().st_mode & 0o077:
         raise MonitorError('Config permissions must be owner-only (chmod 600).')
-    return json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding='utf-8'))
+    return unprotect_settings(data) if os.name == 'nt' else data
 
 
 def bridge_telegram(cfg, method, params):
@@ -553,7 +563,7 @@ def bind_robot(path, cfg):
                 nickname, auth, index, _ = robots[choice]
                 set_saved_auth(cfg, alias, auth)
                 cfg.setdefault('robot_slots', {})[alias] = index
-                save(path, cfg)
+                save_config(path, cfg)
                 print(f'Selected {nickname} for {name}.')
                 return
             print('Enter a nickname shown above, /more, or /back.')
@@ -603,7 +613,7 @@ def settings(path, cfg):
         else:
             print('Choose an option from the menu.')
             continue
-        save(path, cfg)
+        save_config(path, cfg)
 
 
 def keep_awake():
@@ -722,7 +732,7 @@ def interactive(args):
         # Reload before writing to retain settings changed in another terminal.
         config = load_config(args.config)
         set_saved_auth(config, args.coordinator, auth)
-        save(args.config, config)
+        save_config(args.config, config)
     print(message(args.order, current, True, COORDINATORS[args.coordinator][0]), flush=True)
     awake = keep_awake()
     bridge = temp = None
