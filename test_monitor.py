@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -110,12 +111,68 @@ class Tests(unittest.TestCase):
         self.assertNotIn('private', state['pending'][0])
         self.assertEqual(state['chat_offset'], 4)
 
-    @unittest.skipIf(os.name == 'nt', 'Brave port discovery is macOS-specific')
     def test_old_port_replaced_by_new_brave_socks_port(self):
-        listeners = 'p1\nctor\nn127.0.0.1:9999\np2\nctor-darwin-brave-0\nn127.0.0.1:51000\nn127.0.0.1:51001\n'
-        with patch.object(m.subprocess, 'run', return_value=Mock(stdout=listeners)), \
-             patch.object(m, 'socks_listens', side_effect=[False, False, False, False, True]) as probe:
-            self.assertEqual(m.tor_port(58999), 51001)
-        self.assertEqual([call.args[0] for call in probe.call_args_list], [58999, 9050, 9150, 51000, 51001])
+        mac_listeners = ('p1\nctor\nn127.0.0.1:9999\np2\nctor-0.4.9.16-darwin-brave-0\n'
+                         'n127.0.0.1:51000\nn127.0.0.1:51001\n')
+        for platform, listeners in [('posix', mac_listeners), ('nt', '51000\r\n51001\r\n')]:
+            with self.subTest(platform=platform), patch.object(m.os, 'name', platform), \
+                 patch.object(m.subprocess, 'run', return_value=Mock(stdout=listeners)) as query, \
+                 patch.object(m, 'socks_listens', side_effect=lambda port: port == 51001) as probe:
+                self.assertEqual(m.tor_port(58999), 51001)
+                self.assertEqual([call.args[0] for call in probe.call_args_list],
+                                 [58999, 9050, 9150, 51000, 51001])
+                command = query.call_args.args[0]
+                if platform == 'nt':
+                    self.assertIn("Get-Process -Name 'tor-*-brave-*'", command[-1])
+                    self.assertIn('-OwningProcess $tor.Id', command[-1])
+                else:
+                    self.assertEqual(command[0], '/usr/sbin/lsof')
+
+    def test_standard_or_configured_ports_fast_path(self):
+        for preferred, available in [(9050, 9150), (51020, 51020)]:
+            with self.subTest(preferred=preferred), \
+                 patch.object(m, 'socks_listens', side_effect=lambda port: port == available), \
+                 patch.object(m.subprocess, 'run') as query:
+                self.assertEqual(m.tor_port(preferred), available)
+                query.assert_not_called()
+
+    @unittest.skipUnless(os.name == 'nt', 'Windows listener discovery integration test')
+    def test_windows_finds_a_dynamic_port_owned_by_a_brave_named_process(self):
+        source = """
+using System;
+using System.Net;
+using System.Net.Sockets;
+
+public static class TestProxy {
+    public static void Main() {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        Console.WriteLine(((IPEndPoint)listener.LocalEndpoint).Port);
+        using (var client = listener.AcceptTcpClient())
+        using (var stream = client.GetStream()) {
+            if (stream.ReadByte() == 5 && stream.ReadByte() == 1 && stream.ReadByte() == 0)
+                stream.Write(new byte[] {5, 0}, 0, 2);
+        }
+        listener.Stop();
+    }
+}
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory)
+            (folder / 'TestProxy.cs').write_text(source, encoding='utf-8')
+            command = ['powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+                       "Add-Type -Path TestProxy.cs -OutputAssembly 'tor-test-win64-brave-0.exe' "
+                       "-OutputType ConsoleApplication -ErrorAction Stop"]
+            subprocess.run(command, cwd=directory, check=True, timeout=30)
+            with subprocess.Popen([str(folder / 'tor-test-win64-brave-0.exe')], stdout=subprocess.PIPE,
+                                  text=True) as proxy:
+                try:
+                    port = int(proxy.stdout.readline())
+                    self.assertIn(port, list(m.brave_tor_ports()))
+                    self.assertTrue(m.socks_listens(port))
+                    self.assertEqual(proxy.wait(timeout=5), 0)
+                finally:
+                    if proxy.poll() is None:
+                        proxy.kill()
 
 if __name__=='__main__': unittest.main()

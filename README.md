@@ -15,12 +15,12 @@ Choose the guide for your computer:
 | macOS | [macOS setup](SETUP-MACOS.md) | `bash start.sh` |
 | Windows 10 or 11 | [Windows setup](SETUP-WINDOWS.md) | `.\start-windows.cmd` in PowerShell |
 
-Keep the computer awake and online, with the bridge running. If the bridge uses a browser for Tor, leave that browser connected while using Telegram.
+On both platforms, use Brave’s private Tor window, Tor Browser, or standalone Tor. The bridge finds Brave’s changing local port automatically. Keep the computer awake and online, with Tor connected and the bridge running.
 
 ## 2. Create and connect your Telegram bot
 
 1. In Telegram, open [@BotFather](https://t.me/BotFather), send `/newbot`, and choose a display name and username. Copy the full token BotFather returns. It includes the numeric bot ID before the colon.
-2. When the bridge opens setup, paste the token into the hidden terminal prompt. Enter your numeric private **chat ID** if you know it, or press Enter so the script can discover it. At the **Tor SOCKS port** prompt, press Enter to use automatic detection. The Windows guide uses Tor Browser. The macOS guide also covers Brave and standalone Tor.
+2. When the bridge opens setup, paste the token into the hidden terminal prompt. Enter your numeric private **chat ID** if you know it, or press Enter so the script can discover it. At the **Tor SOCKS port** prompt, press Enter to use automatic detection.
 3. Follow the link shown in the terminal, tap **Start** in your private chat with your new bot, and send the one-time code shown in the terminal. Use the Telegram account you want to control the bot. The script verifies the bot ID and chat ID and sends a setup test message.
 4. At the **Garage Key** prompt, use the `robo1…` key you backed up when you created your RoboSats Garage. If you are new to RoboSats, [create your Garage first](https://learn.robosats.org/read/en/) and back up its key. Choose whether to save the key on this computer. You can also enter it just for the current session.
 
