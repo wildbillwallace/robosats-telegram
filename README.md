@@ -8,11 +8,21 @@ This independent project supports **mainnet BTC buy orders taken from the public
 
 ## 1. Install on macOS
 
-Install [Homebrew](https://brew.sh/) if you don't already have it. In Terminal, run:
+Install [Homebrew](https://brew.sh/) if you don't already have it. In Terminal, install the required tools:
 
 ```sh
-brew install python node tor gnupg
-brew services start tor
+brew install python node gnupg
+```
+
+### Connect to Tor
+
+- **Already using Brave?** Open **File → New Private Window with Tor**, wait for Tor to connect, and leave that window open. The bridge detects Brave's local Tor port and checks again if it changes. You can use this connection without installing standalone Tor.
+- **Prefer Tor running in the background?** Run `brew install tor` and then `brew services start tor`. The bridge checks the default port, **9050**, automatically.
+- **Already using another local Tor setup?** The bridge also checks **9150**. For a custom local SOCKS port, enter it at setup or change it later under **Settings**.
+
+### Download and start the bridge
+
+```sh
 git clone https://github.com/wildbillwallace/robosats-telegram.git
 cd robosats-telegram
 bash start.sh
@@ -20,12 +30,12 @@ bash start.sh
 
 The launcher creates an isolated Python environment and installs the Python and chat libraries on the first run. It then opens the setup prompts. You can use the same command every time.
 
-Tor normally listens on port **9050** with this setup. You can also use an existing local Tor SOCKS listener and enter its port during setup. For mobile access, leave the computer connected, the lid open, and the script running. The script uses macOS `caffeinate` while monitoring or browsing.
+For mobile access, leave the Mac connected, its lid open, and the script running. If you're using Brave for Tor, keep its Tor window connected too. The script uses macOS `caffeinate` while monitoring or browsing.
 
 ## 2. Create and connect your Telegram bot
 
 1. In Telegram, open [@BotFather](https://t.me/BotFather), send `/newbot`, and choose a display name and username. Copy the full token BotFather returns. It includes the numeric bot ID before the colon.
-2. When `bash start.sh` opens setup, paste the token into the hidden terminal prompt. Enter your numeric private **chat ID** if you know it, or press Enter so the script can discover it.
+2. When `bash start.sh` opens setup, paste the token into the hidden terminal prompt. Enter your numeric private **chat ID** if you know it, or press Enter so the script can discover it. At the **Tor SOCKS port** prompt, press Enter to let the bridge detect your connection, including Brave.
 3. Follow the link shown in the terminal, tap **Start** in your private chat with your new bot, and send the one-time code shown in the terminal. Use the Telegram account you want to control the bot. The script verifies the bot ID and chat ID and sends a setup test message.
 4. At the **Garage Key** prompt, choose whether to save it locally. It is the `robo1…` key from your RoboSats Garage. Paste it into the hidden terminal prompt when asked. You can save it later from **Settings** or enter it for a session.
 
@@ -50,7 +60,7 @@ Open Terminal in the same folder again and run:
 bash start.sh
 ```
 
-Press **Ctrl+C** to stop. If Tor is unavailable, check that it is running and confirm the SOCKS port under **Settings**. If mobile actions or Nostr chat cannot start, check that `gpg --version` and `node --version` work. Run `bash start.sh` again after installing any missing tools.
+Press **Ctrl+C** to stop. If Tor is unavailable, check that your Brave Tor window is connected or that your standalone Tor service is running. Use **Settings → Tor SOCKS port** if your local setup uses a custom port. If mobile actions or Nostr chat cannot start, check that `gpg --version` and `node --version` work. Run `bash start.sh` again after installing any missing tools.
 
 For a read-only authenticated check, use `bash start.sh check --coordinator temple --order ORDER_NUMBER` after selecting a robot for that coordinator. Use `lake` for The Big Lake.
 
