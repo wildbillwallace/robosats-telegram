@@ -1,6 +1,6 @@
 # macOS setup
 
-### Check the Mac tools
+## 1. Check the Mac tools
 
 Open **Terminal**. Run these commands to see which tools you already have:
 
@@ -17,7 +17,7 @@ You need Git, **Python 3.10+**, **Node.js 22+** with npm, and **GnuPG**. Install
 - **Individual installers:** Get the macOS installer from [Python.org](https://www.python.org/downloads/macos/) and the LTS macOS installer from [Node.js](https://nodejs.org/en/download). [GPG Suite](https://gpgtools.org/) provides the `gpg` command through MacGPG. If Git is missing, run `xcode-select --install` and follow the macOS prompt. Open a new Terminal window after installing tools and repeat the version checks.
 - **Homebrew:** If you already use [Homebrew](https://brew.sh/), you can run `brew install python node gnupg` to install those tools.
 
-### Connect to Tor
+## 2. Connect to Tor
 
 - **Already using Brave?** Open **File → New Private Window with Tor**, wait for Tor to connect, and leave that window open. The bridge detects Brave's local Tor port and checks again if it changes. You can use this connection without installing standalone Tor.
 - **Tor Browser:** Install [Tor Browser for macOS](https://www.torproject.org/download/), click **Connect**, and leave it open. The bridge checks port **9150** automatically.
@@ -25,7 +25,7 @@ You need Git, **Python 3.10+**, **Node.js 22+** with npm, and **GnuPG**. Install
 
 At the **Tor SOCKS port** prompt, press **Enter** for automatic detection. If you use a custom standalone Tor port, enter it there or change it later in **Settings**.
 
-### Download and start the bridge
+## 3. Download and start the bridge
 
 ```sh
 git clone https://github.com/wildbillwallace/robosats-telegram.git
@@ -47,7 +47,15 @@ python robosats_monitor.py
 
 Confirm the first line shows Python 3.10 or newer. The install command adds the Python dependencies to your active environment. On later runs, activate that environment and run only `python robosats_monitor.py` from the project folder. If that environment uses `python3`, use `python3` in these commands.
 
-While the bridge browses offers or monitors an order, it uses macOS `caffeinate` to prevent idle sleep and lets the screen turn off. Keep your Mac online and Tor connected. Leave the lid open if closing it puts your Mac to sleep. Press **Ctrl+C** in Terminal to stop the bridge and release its sleep prevention.
+## 4. Pair your bot
 
-Continue with [Create and connect your Telegram bot](README.md#2-create-and-connect-your-telegram-bot).
+Follow [Create and connect your Telegram bot](README.md#2-create-and-connect-your-telegram-bot), then [try it without a trade](README.md#try-it-without-a-trade). Wait for the test message on your phone before leaving the computer.
+
+## 5. Leave the bridge running for your phone
+
+Start **Browse offers on Telegram** or **Monitor an existing order** before you leave. Keep the Terminal window open, the Mac online, and your Tor connection running. You can minimize Terminal, lock the Mac, or let the screen turn off. The bridge uses `caffeinate` to prevent idle sleep while browsing or monitoring. The setup menu is idle until you choose a mode.
+
+Leave the lid open if closing it sleeps the Mac. If the Mac goes to sleep or loses its connection, wake or reconnect it and check **Trade status** before retrying an action. Press **Ctrl+C** to stop the bridge and release the sleep request. To resume, run the same start command and choose [Monitor an existing order](README.md#resume-a-buy-order-from-desktop) if you already took an offer.
+
+If Node.js, Python, or Git is missing from Terminal after installation, open a fresh Terminal window and repeat the version checks above. For Tor, pairing, or Telegram problems, see [Restart and troubleshooting](README.md#restart-and-troubleshooting).
 

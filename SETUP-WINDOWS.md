@@ -57,4 +57,12 @@ On later runs, activate the environment and run only `python robosats_monitor.py
 
 ## 4. Pair your bot
 
-Continue with [Create and connect your Telegram bot](README.md#2-create-and-connect-your-telegram-bot). While the bridge browses offers or monitors an order, it asks Windows to prevent idle sleep and lets the screen turn off. Keep Windows online and Tor connected. Leave the lid open if closing it puts your laptop to sleep. Press **Ctrl+C** in PowerShell to stop the bridge and release its sleep prevention.
+Follow [Create and connect your Telegram bot](README.md#2-create-and-connect-your-telegram-bot), then [try it without a trade](README.md#try-it-without-a-trade). Wait for the test message on your phone before leaving the computer.
+
+## 5. Leave the bridge running for your phone
+
+Start **Browse offers on Telegram** or **Monitor an existing order** before you leave. Keep the PowerShell window open, the PC online, and your Tor connection running. You can minimize PowerShell, lock the PC, or let the screen turn off. The bridge asks Windows to prevent idle sleep while browsing or monitoring. The setup menu is idle until you choose a mode.
+
+Leave the lid open if closing it sleeps or hibernates the laptop. If the PC goes to sleep or loses its connection, wake or reconnect it and check **Trade status** before retrying an action. Press **Ctrl+C** to stop the bridge and release the sleep request. To resume, run the same start command and choose [Monitor an existing order](README.md#resume-a-buy-order-from-desktop) if you already took an offer.
+
+If Node.js, Python, or Git is missing from PowerShell after installation, open a fresh PowerShell window and repeat the version checks above. For Tor, pairing, or Telegram problems, see [Restart and troubleshooting](README.md#restart-and-troubleshooting).
