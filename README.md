@@ -21,12 +21,12 @@ On both platforms, use Brave’s private Tor window, Tor Browser, or standalone 
 
 ## 2. Create and connect your Telegram bot
 
-1. In Telegram, open [@BotFather](https://t.me/BotFather), send `/newbot`, and choose a display name and username. Copy the full token BotFather returns. It includes the numeric bot ID before the colon.
+1. **Use a bot you already own or create one.** You can reuse a bot if it has no webhook and the bridge will be the only app reading its messages. If your bot is still used by another app or automation, create a separate one. To create a bot, open [@BotFather](https://t.me/BotFather), send `/newbot`, and choose a display name and username. For either path, have the full bot token ready, including the numeric bot ID before the colon.
 2. When the bridge opens setup, paste the token into the hidden terminal prompt and press Enter. The paste is invisible by design. At the private **chat ID** prompt, press Enter to discover it automatically, or enter your numeric private chat ID if you already know it. At the **Tor SOCKS port** prompt, press Enter for automatic detection.
-3. Open the Telegram link shown in the terminal using the account you want to trade from. Tap **Start** in your private chat with the new bot, then send the one-time code as a message to that bot.
+3. Open the Telegram link shown in the terminal using the account you want to trade from. In your private chat with the bot, tap **Start** if Telegram shows it, then send the one-time code as a message.
 4. When the terminal asks whether to save your **Garage Key**, type `y` to save it or press Enter to skip. If you save it, paste the `robo1…` key you backed up when you created your RoboSats Garage. If you skip, the bridge asks for the key when a feature needs it. If you are new to RoboSats, [create your Garage first](https://learn.robosats.org/read/en/) and back up its key. Setup is complete when the bot sends a test message and the terminal shows the main menu.
 
-Telegram has separate [bot creation instructions](https://core.telegram.org/bots/tutorial#obtain-your-bot-token). Use a dedicated bot for this bridge and run one listener at a time. Enter credentials only in the local terminal. The bridge stores them outside the project folder. On macOS, the settings file is under `~/Library/Application Support/RoboSatsTelegram/` with owner-only permissions. A Garage Key saved there is stored in plaintext. On Windows, settings are under `%LOCALAPPDATA%\RoboSatsTelegram\` and are encrypted for your Windows user with DPAPI.
+Telegram has separate [bot creation instructions](https://core.telegram.org/bots/tutorial#obtain-your-bot-token). Run one copy of the bridge per bot. Enter credentials only in the local terminal. The bridge stores them outside the project folder. On macOS, the settings file is under `~/Library/Application Support/RoboSatsTelegram/` with owner-only permissions. A Garage Key saved there is stored in plaintext. On Windows, settings are under `%LOCALAPPDATA%\RoboSatsTelegram\` and are encrypted for your Windows user with DPAPI.
 
 ## 3. Choose filters and use the bot
 
