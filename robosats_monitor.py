@@ -37,6 +37,7 @@ LABELS = dict(enumerate([
     'Maker lost dispute', 'Taker lost dispute']))
 TERMINAL = {4, 5, 12, 14, 17, 18}
 CHAT_STATUSES = {9, 10, 11, 16}
+ROBOT_SEARCH_BATCH = 10
 
 class MonitorError(Exception):
     pass
@@ -57,7 +58,7 @@ def save(path, value):
             temp.unlink(missing_ok=True)
 
 
-def prompt_auth(config=None, order=None, extend_search=False, remember_seed=None):
+def prompt_auth(config, order, remember_seed):
     while True:
         value = getpass.getpass('RoboSats Garage Key (robo1...) or Authorization header: ').strip()
         # Some terminal paste modes wrap clipboard input in control sequences.
@@ -67,23 +68,12 @@ def prompt_auth(config=None, order=None, extend_search=False, remember_seed=None
         value = ''.join(value.strip('\"\'`“”').split())
         try:
             seed = decode_garage_key(value)
-            if remember_seed is not None:
-                remember_seed(seed)
+            remember_seed(seed)
             break
         except ValueError as exc:
             print(f'{exc} Try pasting again, or press Ctrl+C to stop.', file=sys.stderr)
-    try:
-        if order is not None:
-            return find_order_auth(seed, config, order, extend_search=extend_search)
-        index = int(input('RoboSats robot index [0 for the first robot]: ').strip() or '0')
-    except ValueError:
-        raise MonitorError('Robot index must be a number.') from None
-    try:
-        return garage_authorization(seed, index)
-    except ImportError:
-        raise MonitorError('Install the updated requirements.txt, then retry setup.') from None
-    except ValueError as exc:
-        raise MonitorError(str(exc)) from None
+    return find_order_auth(seed, config, order, extend_search=True)
+
 
 def pair_telegram(cfg, expected_chat=None, timeout=120):
     bot = bridge_telegram(cfg, 'getMe', {})
@@ -250,29 +240,34 @@ def coordinator_get(cfg, endpoint, params):
     return coordinator_request(cfg, endpoint, params)
 
 
+def lookup_robot(runtime, authorization):
+    response = coordinator_get({**runtime, 'auth': authorization}, '/api/robot/', {})
+    try:
+        data = response.json()
+    except ValueError:
+        raise MonitorError('Coordinator returned an unreadable robot response.') from None
+    if not isinstance(data, dict):
+        raise MonitorError('Coordinator returned an unexpected robot response.')
+    if response.status_code == 400 and data.get('error_code') == 7001:
+        return None
+    if response.status_code != 200:
+        raise MonitorError(f'Robot lookup failed (HTTP {response.status_code}).')
+    return data
+
+
 def find_order_auth(seed, config, order, extend_search=False):
-    candidate = {**config, 'port': tor_port(config['port'])}
+    runtime = {**config, 'port': tor_port(config['port'])}
     print(f'Looking for active order #{order} in your Garage…', flush=True)
-    for index in range(2**31 if extend_search else 10):
-        if index and index % 10 == 0:
-            if input(f'No match through slot {index - 1}. Check the next 10? [y/N]: ').strip().lower() not in {'y', 'yes'}:
+    for index in range(2**31 if extend_search else ROBOT_SEARCH_BATCH):
+        if index and index % ROBOT_SEARCH_BATCH == 0:
+            if input('No match yet. Search for more robots? [y/N]: ').strip().lower() not in {'y', 'yes'}:
                 break
-        candidate['auth'] = garage_authorization(seed, index)
-        response = coordinator_get(candidate, '/api/robot/', {})
-        try:
-            data = response.json()
-        except ValueError:
-            raise MonitorError('Coordinator returned an unreadable robot response.') from None
-        if not isinstance(data, dict):
-            raise MonitorError('Coordinator returned an unexpected robot response.')
-        if response.status_code == 400 and data.get('error_code') == 7001:
-            continue  # This bearer has no registered robot here. No registration keys are sent.
-        if response.status_code != 200:
-            raise MonitorError(f'Robot lookup failed (HTTP {response.status_code}).')
-        if data.get('active_order_id') == order:
-            print(f'Found order #{order} at robot index {index}.')
-            return candidate['auth']
-    raise MonitorError('No active match in the robot slots checked. Verify the order number, coordinator, and Garage Key.')
+        auth = garage_authorization(seed, index)
+        data = lookup_robot(runtime, auth)
+        if data is not None and data.get('active_order_id') == order:
+            print(f'Found the robot for order #{order}.')
+            return auth
+    raise MonitorError('No active match found. Verify the order number, coordinator, and Garage Key.')
 
 
 def fetch(cfg, order, include_peer=False):
@@ -518,16 +513,50 @@ def choose_coordinator():
 
 def bind_robot(path, cfg):
     alias = choose_coordinator()
+    name = COORDINATORS[alias][0]
     seed = session_garage_seed(path) or decode_garage_key(read_garage_key())
-    index = int(input('Garage robot index [0 for the first robot]: ').strip() or '0')
-    auth = garage_authorization(seed, index)
-    runtime = {**cfg, 'auth': auth, 'coordinator': alias, 'port': tor_port(cfg['port'])}
-    response = coordinator_get(runtime, '/api/robot/', {})
-    if response.status_code != 200 or not isinstance(response.json(), dict):
-        raise MonitorError('Choose a robot you have already opened at this coordinator in RoboSats.')
-    set_saved_auth(cfg, alias, auth)
-    save(path, cfg)
-    print(f'Robot slot {index} selected for {COORDINATORS[alias][0]}.')
+    runtime = {**cfg, 'coordinator': alias, 'port': tor_port(cfg['port'])}
+    robots = {}
+    for start in range(0, 2**31, ROBOT_SEARCH_BATCH):
+        print(f'Looking for robots registered with {name}…', flush=True)
+        for index in range(start, min(start + ROBOT_SEARCH_BATCH, 2**31)):
+            auth = garage_authorization(seed, index)
+            data = lookup_robot(runtime, auth)
+            if data is None:
+                continue
+            nickname = data.get('nickname')
+            if not isinstance(nickname, str) or not nickname or not nickname.isprintable():
+                raise MonitorError(f'{name} did not return a readable robot nickname.')
+            robots[nickname.casefold()] = (nickname, auth, index, data.get('active_order_id'))
+
+        if not robots:
+            print(f'No robots found yet. If this is your first time using {name}, open your robot there in RoboSats first.')
+        for nickname, auth, _, order in robots.values():
+            notes = []
+            if auth == saved_auth(cfg, alias):
+                notes.append('saved')
+            if type(order) is int and order > 0:
+                notes.append(f'active order #{order}')
+            suffix = ' · ' + ' · '.join(notes) if notes else ''
+            print(f'  {nickname}{suffix}')
+
+        single = next(iter(robots)) if len(robots) == 1 else None
+        print('Enter /more to search for more robots or /back to return.')
+        while True:
+            prompt = f'Press Enter to use {robots[single][0]}: ' if single else 'Robot nickname: '
+            choice = input(prompt).strip().casefold() or single
+            if choice == '/back':
+                return
+            if choice == '/more':
+                break
+            if choice in robots:
+                nickname, auth, index, _ = robots[choice]
+                set_saved_auth(cfg, alias, auth)
+                cfg.setdefault('robot_slots', {})[alias] = index
+                save(path, cfg)
+                print(f'Selected {nickname} for {name}.')
+                return
+            print('Enter a nickname shown above, /more, or /back.')
 
 
 def settings(path, cfg):
@@ -555,7 +584,10 @@ def settings(path, cfg):
                 continue
             cfg['offer_currency'], cfg['offer_method'] = currency, method
         elif choice == '2':
-            bind_robot(path, cfg)
+            try:
+                bind_robot(path, cfg)
+            except (MonitorError, ValueError) as exc:
+                print(str(exc), file=sys.stderr)
             continue
         elif choice == '3':
             if input('Save or remove? [s/r]: ').strip().lower() == 'r':
@@ -584,9 +616,14 @@ def robot_signing_token(cfg, seed=None, interactive_search=True):
         if seed is None:
             value = getpass.getpass('Garage Key to unlock this robot’s signing key: ')
             seed = decode_garage_key(''.join(value.strip().split()))
+        slot = cfg.get('robot_slots', {}).get(cfg.get('coordinator'))
+        if type(slot) is int and 0 <= slot < 2**31:
+            token = garage_robot_token(seed, slot)
+            if robot_authorization(token) == cfg['auth']:
+                return token
         for index in range(2**31):
             if index and index % 100 == 0:
-                if not interactive_search or input(f'No robot key match through robot {index - 1}. Search the next 100? [y/N]: ').strip().lower() != 'y':
+                if not interactive_search or input('No matching signing key found yet. Search for more robots? [y/N]: ').strip().lower() != 'y':
                     raise BridgeError('No matching robot key found.')
             token = garage_robot_token(seed, index)
             if robot_authorization(token) == cfg['auth']:
@@ -675,12 +712,11 @@ def interactive(args):
         garage_seed = seed
 
     if not auth:
-        print('Enter the Garage Key for this order to find its robot.')
         garage_seed = session_garage_seed(args.config)
         if garage_seed is not None:
             auth = find_order_auth(garage_seed, runtime, args.order, extend_search=True)
         else:
-            auth = prompt_auth(runtime, args.order, extend_search=True, remember_seed=remember_seed)
+            auth = prompt_auth(runtime, args.order, remember_seed)
         runtime['auth'] = auth
         current = fetch(runtime, args.order)
         # Reload before writing to retain settings changed in another terminal.
