@@ -1,3 +1,4 @@
 requests[socks]==2.32.5
 cryptography>=39
 base91==1.0.1
+pywin32==312; sys_platform == "win32"

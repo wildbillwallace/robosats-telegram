@@ -1,5 +1,4 @@
 """Opt-in Telegram bridge for coordinator-backed RoboSats text chat."""
-import fcntl
 import json
 import math
 import os
@@ -9,6 +8,8 @@ import shutil
 import subprocess
 from tempfile import TemporaryDirectory
 import time
+
+from robosats_platform import gpg_tool, lock_file
 
 
 # Mainnet federation relays from the RoboSats v0.8.8 roster.
@@ -35,7 +36,7 @@ class NostrChat:
     def invoke(self, payload):
         try:
             result = subprocess.run([self.node, str(Path(__file__).with_name('nostr_reply.mjs'))],
-                                    input=json.dumps(payload), text=True, capture_output=True, timeout=22)
+                                    input=json.dumps(payload), text=True, encoding='utf-8', capture_output=True, timeout=22)
         except (OSError, subprocess.TimeoutExpired):
             return None
         return result.stdout if result.returncode == 0 else None
@@ -75,16 +76,22 @@ class ChatKeys:
         args = [self.gpg, '--no-options', '--homedir', self.directory, '--batch', '--yes',
                 '--no-tty', '--pinentry-mode', 'loopback', '--status-fd', '2']
         fd = None
+        launch_options = {}
+        payload = data.encode('utf-8')
         try:
-            if secret:
+            if secret and os.name == 'nt':
+                args += ['--passphrase-fd', '0']
+                payload = self.passphrase.encode('utf-8') + b'\n' + payload
+            elif secret:
                 fd, writer = os.pipe()
                 try:
                     os.write(writer, (self.passphrase + '\n').encode())
                 finally:
                     os.close(writer)
                 args += ['--passphrase-fd', str(fd)]
-            result = subprocess.run(args + flags, input=data.encode(), capture_output=True,
-                                    pass_fds=() if fd is None else (fd,), timeout=15)
+                launch_options['pass_fds'] = (fd,)
+            result = subprocess.run(args + flags, input=payload, capture_output=True,
+                                    timeout=15, **launch_options)
         except (OSError, subprocess.TimeoutExpired):
             raise BridgeError('Local GnuPG operation failed.') from None
         finally:
@@ -127,7 +134,7 @@ class ChatKeys:
     def sign_invoice(self, invoice):
         signed, _ = self.invoke(['--armor', '--digest-algo', 'SHA512', '--local-user',
                                  self.own, '--clearsign'], invoice + '\n', True)
-        message = signed.decode('ascii')
+        message = signed.decode('ascii').replace('\r\n', '\n')
         if not message.startswith('-----BEGIN PGP SIGNED MESSAGE-----\nHash: SHA512\n\n'):
             raise BridgeError('Could not create the required SHA512 invoice signature.')
         return message
@@ -136,7 +143,7 @@ class ChatKeys:
         encrypted, _ = self.invoke(['--armor', '--trust-model', 'always', '--local-user', self.own,
                                     '--recipient', self.own, '--recipient', self.peer,
                                     '--sign', '--encrypt'], text, True)
-        return encrypted.decode('ascii').replace('\n', '\\')
+        return encrypted.decode('ascii').replace('\r\n', '\n').replace('\n', '\\')
 
 
 class ChatBridge:
@@ -153,15 +160,14 @@ class ChatBridge:
         bot_id = re.fullmatch(r'(\d+):[A-Za-z0-9_-]+', cfg['bot'])
         if not bot_id:
             raise BridgeError('Invalid Telegram bot configuration.')
-        self.lock = (Path(directory) / f'bridge-{bot_id[1]}.lock').open('a')
         try:
-            fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.lock = lock_file(Path(directory) / f'bridge-{bot_id[1]}.lock')
+        except BlockingIOError:
+            raise BridgeError('Another monitor is using this bot for chat replies.') from None
+        try:
             webhook = telegram_call('getWebhookInfo', {})
             if not isinstance(webhook, dict) or webhook.get('url'):
                 raise BridgeError('This Telegram bot uses a webhook. Chat bridge requires a bot available for polling.')
-        except BlockingIOError:
-            self.lock.close()
-            raise BridgeError('Another monitor is using this bot for chat replies.') from None
         except BaseException:
             self.lock.close()
             raise
@@ -253,9 +259,9 @@ class ChatBridge:
 
 
 def open_keys(robot, passphrase):
-    gpg = shutil.which('gpg')
+    gpg = gpg_tool('gpg')
     if not gpg:
-        raise BridgeError('GnuPG is needed for chat bridge. Install it with brew install gnupg.')
+        raise BridgeError('GnuPG is needed for the chat bridge. See your platform’s setup guide.')
     temp = TemporaryDirectory(prefix='rs-gpg-')
     try:
         return temp, ChatKeys(temp.name, gpg, passphrase, robot)
@@ -265,7 +271,7 @@ def open_keys(robot, passphrase):
 
 
 def close_keys(temp):
-    gpgconf = shutil.which('gpgconf')
+    gpgconf = gpg_tool('gpgconf')
     try:
         if gpgconf:
             subprocess.run([gpgconf, '--homedir', temp.name, '--kill', 'gpg-agent'],

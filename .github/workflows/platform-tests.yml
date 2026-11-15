@@ -1,0 +1,56 @@
+name: Platform tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Prepare native GnuPG on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        timeout-minutes: 4
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP 'gnupg.exe'
+          $target = Join-Path $env:RUNNER_TEMP 'gnupg'
+          Invoke-WebRequest 'https://gnupg.org/ftp/gcrypt/binary/gnupg-w32-2.5.24_20260923.exe' -OutFile $installer -TimeoutSec 60
+          if ((Get-FileHash $installer).Hash -ne 'EA6F9DEE2CCCD83287432625B8B399173805ADD81D27067FCAF019C0C4DA1AD8') {
+            throw 'Unexpected GnuPG installer checksum.'
+          }
+          & "$env:ProgramFiles\7-Zip\7z.exe" x $installer "-o$target" -y | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "GnuPG extraction exited $LASTEXITCODE." }
+          $gpg = Get-ChildItem $target -Recurse -Filter gpg.exe | Select-Object -First 1
+          if (-not $gpg) { throw 'Could not find the native GnuPG executable.' }
+          & $gpg.FullName --version
+          if ($LASTEXITCODE -ne 0) { throw "Could not run native GnuPG." }
+          $gpg.Directory.FullName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Install GnuPG if needed on macOS
+        if: runner.os == 'macOS'
+        run: command -v gpg || brew install gnupg
+      - name: Verify Windows launcher first run and restart
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          call start-windows.cmd --help || exit /b 1
+          call start-windows.cmd --help || exit /b 1
+          .venv\Scripts\python.exe -m unittest discover -v
+      - name: Verify macOS launcher and Python tests
+        if: runner.os == 'macOS'
+        run: |
+          gpg --version
+          bash start.sh --help
+          bash start.sh --help
+          .venv/bin/python -m unittest discover -v
+      - name: Test Nostr locally
+        run: npm test

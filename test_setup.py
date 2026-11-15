@@ -60,7 +60,7 @@ class RobotSelectionTests(unittest.TestCase):
              patch('robosats_monitor.tor_port', return_value=9100), \
              patch('robosats_monitor.garage_authorization', side_effect=lambda _, i: f'Token {i}'), \
              patch('robosats_monitor.lookup_robot', side_effect=robot), \
-             patch('robosats_monitor.save') as save, \
+             patch('robosats_monitor.save_config') as save, \
              patch('builtins.input', return_value='calmotter'), patch('builtins.print') as display:
             bind_robot(path, cfg)
         save.assert_called_once_with(path, cfg)
@@ -77,7 +77,7 @@ class RobotSelectionTests(unittest.TestCase):
              patch('robosats_monitor.garage_authorization', side_effect=lambda _, i: f'Token {i}'), \
              patch('robosats_monitor.lookup_robot',
                    side_effect=lambda _, auth: {'nickname': 'LateBee'} if auth == 'Token 12' else None), \
-             patch('robosats_monitor.save'), patch('builtins.print'), \
+             patch('robosats_monitor.save_config'), patch('builtins.print'), \
              patch('builtins.input', side_effect=['/more', '']) as ask:
             bind_robot(Path('example-settings.json'), cfg)
         self.assertEqual(ask.call_args_list, [call('Robot nickname: '), call('Press Enter to use LateBee: ')])
