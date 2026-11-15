@@ -1,0 +1,15 @@
+{
+  "name": "robosats-telegram",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test test_nostr.mjs"
+  },
+  "dependencies": {
+    "nostr-tools": "2.24.1",
+    "socks-proxy-agent": "8.0.5",
+    "ws": "8.21.3"
+  }
+}
