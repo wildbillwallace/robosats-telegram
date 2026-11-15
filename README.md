@@ -62,7 +62,7 @@ Keep the RoboSats order available for your first live trade. If Telegram is dela
 
 Enable **two-way trade chat and payout** when starting the bridge, then continue on your phone. If you start by monitoring an existing order, enable Telegram chat when prompted. Once RoboSats has locked the seller’s escrow and accepted your payout invoice, **Trade status** shows the order is ready for payment. You can message the seller from then on, including after marking the payment as sent while you wait for release.
 
-**To start the conversation, just type a normal text message in your private bot chat.** You can send the first message, for example, “Hi, which network should I use?” Use the regular message box. Use Telegram’s **Reply** gesture when a trade prompt asks for it, such as when you’re setting a routing budget or typing `CONFIRM`. The bot handles trade buttons, slash commands, and Lightning invoices separately from ordinary seller messages.
+**Look for “Seller chat is open” in Telegram.** The bot sends this once per monitoring session when the order allows messaging and a chat route is available. Type a normal text message in your private bot chat. You can send the first message, for example, “Hi, which network should I use?” Use Telegram’s **Reply** gesture when a trade prompt asks for it, such as when you’re setting a routing budget or typing `CONFIRM`. The bot handles trade buttons, slash commands, and Lightning invoices separately from ordinary seller messages.
 
 Seller replies appear in the same bot chat when the bridge receives them. If the bot says chat is unavailable, check **Trade status** and send the message again once chat is available. If delivery is uncertain, check the RoboSats chat before retrying.
 

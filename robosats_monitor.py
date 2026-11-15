@@ -363,6 +363,7 @@ def flush(state, path, sender):
 def poll_trade_updates(bridge, active, peer_key, participants):
     try:
         bridge.poll_messages(active, peer_key, participants)
+        bridge.announce_seller_chat(active, peer_key, participants)
     except BridgeError as exc:
         print(str(exc), flush=True)
 
