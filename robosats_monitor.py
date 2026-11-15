@@ -125,7 +125,7 @@ def setup(path):
     chat = input('Your numeric private Telegram chat ID [Enter to discover it]: ').strip()
     if chat and not re.fullmatch(r'[1-9][0-9]{0,18}', chat):
         raise MonitorError('Enter a positive private chat ID or press Enter.')
-    proxy = input('Local Tor SOCKS port [Enter for 9050]: ').strip() or '9050'
+    proxy = input('Local Tor SOCKS port [Enter for automatic detection]: ').strip() or '9050'
     if not proxy.isascii() or not proxy.isdecimal() or not 1 <= int(proxy) <= 65535:
         raise MonitorError('Invalid Tor port.')
     cfg = {'bot': bot, 'port': int(proxy)}
@@ -150,27 +150,42 @@ def socks_listens(port):
         return False
 
 
-def tor_port(preferred):
-    for port in dict.fromkeys((preferred, 9050, 9150)):
-        if socks_listens(port):
-            return port
+def brave_tor_ports():
     if os.name == 'nt':
-        raise MonitorError('Open Tor Browser, click Connect, and keep it open. The usual Tor ports are 9050 and 9150.')
+        # Brave's Tor component has a versioned tor-...-brave-... process name.
+        command = ['powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+                   "$tor = @(Get-Process -Name 'tor-*-brave-*' -ErrorAction SilentlyContinue); "
+                   "if ($tor.Count) { Get-NetTCPConnection -State Listen -LocalAddress 127.0.0.1 "
+                   "-OwningProcess $tor.Id -ErrorAction SilentlyContinue | "
+                   "Select-Object -ExpandProperty LocalPort }"]
+    else:
+        command = ['/usr/sbin/lsof', '-nP', '-a', '-c', 'tor', '-iTCP', '-sTCP:LISTEN', '-Fpcn']
     try:
-        result = subprocess.run(
-            ['/usr/sbin/lsof', '-nP', '-a', '-c', 'tor', '-iTCP', '-sTCP:LISTEN', '-Fpcn'],
-            capture_output=True, text=True, timeout=4)
+        result = subprocess.run(command, capture_output=True, encoding='ascii', errors='replace', timeout=8)
     except (OSError, subprocess.TimeoutExpired):
-        raise MonitorError('Start Tor locally and check the SOCKS port in Settings.') from None
+        return
+    if os.name == 'nt':
+        for line in result.stdout.splitlines():
+            if re.fullmatch(r'[0-9]{1,5}', line.strip()) and 1 <= int(line) <= 65535:
+                yield int(line)
+        return
     brave = False
     for line in result.stdout.splitlines():
         if line.startswith('c'):
-            brave = 'brave' in line.lower()
+            brave = re.fullmatch(r'ctor-.*-brave-.*', line.lower()) is not None
         if brave and (match := re.fullmatch(r'n127\.0\.0\.1:(\d+)', line)):
-            port = int(match[1])
-            if port != preferred and socks_listens(port):
+            yield int(match[1])
+
+
+def tor_port(preferred):
+    tried = set()
+    for candidate_ports in ((preferred, 9050, 9150), brave_tor_ports()):
+        for port in candidate_ports:
+            if port not in tried and socks_listens(port):
                 return port
-    raise MonitorError('Tor is unavailable. Start Tor locally and check the SOCKS port in Settings.')
+            tried.add(port)
+    raise MonitorError('Tor is unavailable. Open a Brave Tor window or Tor Browser, wait for it to '
+                       'connect, and keep it open. For a custom Tor setup, check the SOCKS port in Settings.')
 
 
 def session(port):

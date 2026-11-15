@@ -1,6 +1,6 @@
 # Windows setup
 
-Use **Windows 10 or 11**, **PowerShell**, and **Tor Browser**. This guide runs the bridge directly on Windows.
+Use **Windows 10 or 11** and **PowerShell**. This guide runs the bridge directly on Windows.
 
 ## 1. Install the tools
 
@@ -10,7 +10,6 @@ Install only what you are missing:
 - [Python for Windows](https://www.python.org/downloads/windows/) (3.10 or newer). If using the traditional installer, select **Add Python to PATH** and keep the Python launcher enabled.
 - [Node.js LTS for Windows](https://nodejs.org/en/download) (22 or newer). The installer includes npm.
 - [Gpg4win](https://www.gpg4win.org/download.html) for GnuPG. Use the installer defaults.
-- [Tor Browser for Windows](https://www.torproject.org/download/) for the connection to RoboSats.
 
 If the tools are already installed, open a **new PowerShell window** and check:
 
@@ -26,7 +25,11 @@ If you installed Python without the `py` command, check `python --version` inste
 
 ## 2. Connect to Tor
 
-Open **Tor Browser**, click **Connect**, and leave it open. The bridge checks the usual local Tor ports (**9050** and **9150**). Press **Enter** when setup prompts for the Tor SOCKS port. A custom SOCKS port can be entered there or changed later in **Settings**.
+- **Brave:** Open **Menu → New Private Window with Tor**, wait for Tor to connect, and leave that window open. The bridge finds Brave’s local Tor port automatically and checks again if the port changes.
+- **Tor Browser:** Open [Tor Browser for Windows](https://www.torproject.org/download/), click **Connect**, and leave it open. The bridge checks its usual port (**9150**) automatically.
+- **Standalone Tor:** Start your local Tor service. The bridge checks the default port (**9050**) automatically.
+
+At the **Tor SOCKS port** prompt, press **Enter** for automatic detection. If you use a custom standalone Tor port, enter it there or change it later in **Settings**.
 
 ## 3. Download and start the bridge
 
@@ -54,4 +57,4 @@ On later runs, activate the environment and run only `python robosats_monitor.py
 
 ## 4. Pair your bot
 
-Continue with [Create and connect your Telegram bot](README.md#2-create-and-connect-your-telegram-bot). To use it from your phone, leave Windows awake and online, Tor Browser connected, and the bridge running. Press **Ctrl+C** in PowerShell when you want to stop it.
+Continue with [Create and connect your Telegram bot](README.md#2-create-and-connect-your-telegram-bot). To use it from your phone, leave Windows awake and online, Tor connected, and the bridge running. Press **Ctrl+C** in PowerShell when you want to stop it.

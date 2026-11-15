@@ -22,7 +22,8 @@ You need Git, **Python 3.10+**, **Node.js 22+** with npm, and **GnuPG**. Install
 - **Already using Brave?** Open **File → New Private Window with Tor**, wait for Tor to connect, and leave that window open. The bridge detects Brave's local Tor port and checks again if it changes. You can use this connection without installing standalone Tor.
 - **Tor Browser:** Install [Tor Browser for macOS](https://www.torproject.org/download/), click **Connect**, and leave it open. The bridge checks port **9150** automatically.
 - **Standalone Tor with Homebrew:** Run `brew install tor` and then `brew services start tor`. The bridge checks the default port, **9050**, automatically.
-- **Already using another local Tor setup?** The bridge also checks **9150**. For a custom local SOCKS port, enter it at setup or change it later under **Settings**.
+
+At the **Tor SOCKS port** prompt, press **Enter** for automatic detection. If you use a custom standalone Tor port, enter it there or change it later in **Settings**.
 
 ### Download and start the bridge
 
