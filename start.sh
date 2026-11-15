@@ -10,7 +10,7 @@ for tool in python3 node npm gpg curl; do
 done
 if (( ${#missing[@]} > 0 )); then
     printf 'Missing tools: %s\n' "${missing[*]}" >&2
-    printf 'On macOS, run brew install python node tor gnupg, then bash start.sh.\n' >&2
+    printf 'See “Check the Mac tools” in README.md for the individual installers or Homebrew.\n' >&2
     exit 1
 fi
 if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 10))' ||
