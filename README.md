@@ -60,20 +60,33 @@ For mobile access, leave the Mac connected, its lid open, and the script running
 1. In Telegram, open [@BotFather](https://t.me/BotFather), send `/newbot`, and choose a display name and username. Copy the full token BotFather returns. It includes the numeric bot ID before the colon.
 2. When the bridge opens setup, paste the token into the hidden terminal prompt. Enter your numeric private **chat ID** if you know it, or press Enter so the script can discover it. At the **Tor SOCKS port** prompt, press Enter to let the bridge detect your connection, including Brave.
 3. Follow the link shown in the terminal, tap **Start** in your private chat with your new bot, and send the one-time code shown in the terminal. Use the Telegram account you want to control the bot. The script verifies the bot ID and chat ID and sends a setup test message.
-4. At the **Garage Key** prompt, choose whether to save it locally. It is the `robo1…` key from your RoboSats Garage. Paste it into the hidden terminal prompt when asked. You can save it later from **Settings** or enter it for a session.
+4. At the **Garage Key** prompt, use the `robo1…` key you backed up when you created your RoboSats Garage. If you are new to RoboSats, [create your Garage first](https://learn.robosats.org/read/en/) and back up its key. Choose whether to save the key on this Mac. You can also enter it just for the current session.
 
 Telegram has separate [bot creation instructions](https://core.telegram.org/bots/tutorial#obtain-your-bot-token). Use a dedicated bot for this bridge and run one listener at a time. The token, paired chat ID, and saved robot credentials are stored with owner-only permissions outside the checkout, under `~/Library/Application Support/RoboSatsTelegram/` on macOS. Saving the Garage Key stores it in plaintext in that local settings file. Enter credentials only in the local terminal.
 
 ## 3. Choose filters and use the bot
 
-Start the bridge from the project folder using the method you chose above. The terminal menu offers **Browse offers on Telegram**, **Monitor an existing order**, **Settings**, and **Send Telegram test**.
+### Try it without a trade
 
-- **Change filters.** In **Settings → Offer filters**, enter a currency code such as EUR, GBP, or USD. Type `?` to list supported codes. Enter a payment method such as SEPA or USDT, or leave the method blank to see any method. The initial filter is USD with any payment method. Each listing shows the actual methods from the offer.
-- **Take an offer on your phone.** In **Settings → Select robot for phone browsing**, choose the coordinator. The bridge looks for robots from your Garage registered with that coordinator and shows their RoboSats nicknames. Press **Enter** if the only result is the one you want, or type the nickname from the list. The bridge remembers your choice for that coordinator. If you see no results, open the robot at that coordinator in RoboSats first, or enter `/more` to look for more robots. Choose **Browse offers on Telegram**, select and review an offer in Telegram, then explicitly confirm taking it. Pay the displayed bond invoice in your Lightning wallet, then tap **Continue order**.
-- **Continue an order you started on desktop.** Choose **Monitor an existing order**, enter the order number, and select its coordinator. The script checks the saved robot and can look for the right Garage slot when needed. You can also use **Resume desktop order** from Telegram browsing if the correct robot is already selected.
-- **Handle a payout and trade chat.** Enable two-way controls when the script asks. **Trade status** shows the current order. **Lightning payout** lets you choose a routing budget in sats or ppm. Generate the exact invoice shown in your own wallet, paste it into the bot chat, and confirm. When the trade chat opens, type normally to reply to the other trader. After you send the agreed payment in your payment app, use **Confirm Sent** and complete the follow-up confirmation. The bridge supports API chat and Nostr chat when the order exposes the relevant keys. Telegram receives readable chat messages.
+Choose **Send Telegram test** in the Terminal menu. You should get a message from your bot. Then choose **Browse offers on Telegram** and tap **Preview trade keyboard** in Telegram to see the controls. Both checks work without taking an offer or paying a bond.
 
-Keep RoboSats available for the first live trade so you can cross-check the order. If Telegram is delayed or a trade action has an uncertain result, check the current state in RoboSats before retrying. Choose **Preview trade keyboard** from the Telegram browsing menu to try the controls without an order. **Send Telegram test** checks delivery without accessing an order.
+### Take a new buy offer from Telegram
+
+1. Open the robot you want to use in RoboSats at **Temple of Sats** or **The Big Lake**. For a new trade, use the fresh robot RoboSats shows in the Garage. In the bridge's terminal menu, go to **Settings → Select robot for phone browsing**, choose that coordinator, and pick your robot by its RoboSats nickname. Press **Enter** to accept a single match. If the robot you want is missing, make sure you opened it at that coordinator and enter `/more` to search farther.
+2. If you want to narrow the book, open **Settings → Offer filters**. Set a currency such as EUR, GBP, or USD, and optionally a payment method such as SEPA or USDT. The default is USD and any payment method.
+3. Choose **Browse offers on Telegram** in Terminal and answer **yes** to enable **two-way trade chat and payout**. In Telegram, tap **Browse offers**, review an offer and its coordinator, then confirm if you want to take it. Pay the bond invoice shown by the bot in your Lightning wallet, then tap **Continue order** and **Continue on phone** when the order is ready.
+
+### Resume a buy order from desktop
+
+Choose **Monitor an existing order** in Terminal, enter the RoboSats order number, and select its coordinator. The bridge checks your saved robot and can look for the one with that active order. Enable Telegram chat when prompted if you want the two-way controls. If the right robot is already selected for phone browsing, you can also tap **Resume desktop order** in Telegram.
+
+### Finish the trade
+
+1. When **Trade status** shows that RoboSats needs your payout invoice, tap **Lightning payout**. Set your routing budget if needed, then create a Lightning invoice in your wallet for the **exact sat amount shown by the bot**. Paste it into your private bot chat and confirm.
+2. Once trade chat opens, send a normal Telegram message to reply to the seller. The bridge uses RoboSats API or Nostr chat according to the keys available for the order. Your bridged messages are readable in Telegram.
+3. When RoboSats is ready for the agreed payment, send it in your usual payment app. Then tap **Confirm Sent** and complete the follow-up confirmation in Telegram. Watch for the final order status and check the receiving wallet for your Lightning payout.
+
+Keep the RoboSats order available for your first live trade. If Telegram is delayed or a trade action has an uncertain result, check the order in RoboSats before retrying.
 
 ## Restart and troubleshooting
 
