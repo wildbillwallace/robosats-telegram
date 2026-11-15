@@ -1,10 +1,10 @@
 # RoboSats Telegram Bridge
 
-Take a RoboSats buy offer from your phone through your own Telegram bot. Browse and take offers, get the Lightning bond invoice, submit a payout invoice, chat with the seller, mark your payment as sent, and get a final status alert.
+**Buy bitcoin on RoboSats from your phone, even when you’re away from your computer.** Set up your own Telegram bot, select your RoboSats robot, and start **Browse offers on Telegram** on your Mac or Windows PC before leaving. Keep the computer online with Tor connected and the bridge running.
 
-**You pay the bond in your Lightning wallet and pay the seller in your usual payment app.** Telegram handles the RoboSats order controls. The bridge runs on your computer and connects to RoboSats over Tor.
+In Telegram you can browse and take an offer, get the bond invoice, set your Lightning routing budget, submit your payout invoice, chat with the seller, mark your payment as sent, and track the order through payout. On the same phone, use your Lightning wallet to pay the bond and create the payout invoice, and your usual payment app to pay the seller. The seller still releases escrow through RoboSats.
 
-This independent project supports **mainnet BTC buy orders taken from the public book** on **Temple of Sats** and **The Big Lake**. You can also resume a supported order you started in RoboSats on desktop.
+This independent project supports **mainnet BTC buy orders taken from the public book** on **Temple of Sats** and **The Big Lake**. You can also pick up a supported order you started on desktop. For a dispute or an uncertain payment or order status, open RoboSats to check the trade before retrying.
 
 ## 1. Install
 
