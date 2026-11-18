@@ -259,6 +259,7 @@ def run_offer_browser(cfg, directory, coordinators, get, tor_port, telegram, mak
                 browser.send(status, buttons)
             print('Bridge ready. Continue in your private Telegram bot chat. Ctrl+C stops.', flush=True)
             offset = None
+            poll_error = None
             executor = ThreadPoolExecutor(max_workers=1)
             try:
                 while True:
@@ -269,7 +270,19 @@ def run_offer_browser(cfg, directory, coordinators, get, tor_port, telegram, mak
                         params = {'timeout': 10, 'allowed_updates': ['message', 'callback_query']}
                         if offset is not None:
                             params['offset'] = offset
-                        for update in telegram(cfg, 'getUpdates', params):
+                        try:
+                            updates = telegram(cfg, 'getUpdates', params)
+                        except BridgeError as exc:
+                            reason = str(exc)
+                            if reason != poll_error:
+                                print(f'{reason} Retrying in 5 seconds.', flush=True)
+                            poll_error = reason
+                            time.sleep(5)
+                            continue
+                        if poll_error is not None:
+                            print('Telegram connection restored. The bridge is listening again.', flush=True)
+                            poll_error = None
+                        for update in updates:
                             offset = update['update_id'] + 1
                             browser.handle(update)
                             if getattr(browser, 'handoff', None):

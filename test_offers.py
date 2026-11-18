@@ -1,8 +1,11 @@
-from unittest import TestCase
-from unittest.mock import Mock
+from contextlib import redirect_stdout
 from decimal import Decimal
+from io import StringIO
 from tempfile import TemporaryDirectory
+from unittest import TestCase
+from unittest.mock import Mock, patch
 
+from robosats_bridge import BridgeError
 from robosats_mobile import MobileOffers
 from robosats_offers import BUY, book, bond_text, OfferBrowser, run_offer_browser
 
@@ -35,6 +38,30 @@ class OfferTests(TestCase):
         self.assertEqual([row[0]['text'] for row in keyboard],
                          ['🔎 Browse offers', '🎛️ Offer filters', '🔔 Offer alerts', '↩️ Resume an order'])
         get.assert_not_called()
+
+    def test_polling_reports_outage_once_and_reports_recovery_even_without_updates(self):
+        failure = 'Telegram chat bridge connection failed.'
+        poll = Mock(side_effect=[BridgeError(failure), BridgeError(failure), [], [], KeyboardInterrupt])
+
+        def telegram(cfg, method, params):
+            if method == 'getUpdates':
+                return poll()
+            if method == 'getWebhookInfo':
+                return {'url': ''}
+            return True
+
+        output = StringIO()
+        with TemporaryDirectory() as directory, redirect_stdout(output), patch('robosats_offers.time.sleep') as sleep:
+            with self.assertRaises(KeyboardInterrupt):
+                run_offer_browser({'chat': '1', 'bot': '99:test', 'port': 9050}, directory,
+                                  {'temple': ('Temple', 'http://fixture.onion')}, Mock(), lambda port: port, telegram)
+
+        self.assertEqual(sleep.call_count, 2)
+        lines = output.getvalue().splitlines()
+        self.assertEqual(lines[1:], [
+            f'{failure} Retrying in 5 seconds.',
+            'Telegram connection restored. The bridge is listening again.',
+        ])
 
     def test_sell_alert_book_reads_public_buy_offers_only(self):
         buyer = {'id': 7, 'type': BUY, 'currency': 1, 'payment_method': 'USDT'}
