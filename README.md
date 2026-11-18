@@ -47,6 +47,10 @@ The bridge sends its main buttons to your bot chat when it starts. Tap **Menu** 
 
 When the bridge says **Bridge ready**, tap **Browse offers** in the bot’s startup menu. Try changing an offer filter and browsing the results. Browsing works without selecting a robot or locking a bond.
 
+<p>
+  <a href="assets/screenshots/bridge-menu-and-offers.png"><img src="assets/screenshots/bridge-menu-and-offers.png" width="280" alt="Telegram startup menu and matching buy offers with premiums and bond percentages"></a>
+</p>
+
 ### Get alerts for matching offers
 
 1. Set your currency, payment method, and coordinator under **Offer filters**.
@@ -55,6 +59,10 @@ When the bridge says **Bridge ready**, tap **Browse offers** in the bot’s star
 
 The bridge checks about once a minute while it’s ready to browse. Keep your computer online with the bridge and Tor running. Alerts are optional and use only the public order book, so you can try them without entering your Garage Key. Checking pauses during active trade monitoring and resumes when the bridge returns to browsing. Tap **Pause alerts** on an alert or in **Offer alerts** to stop notifications.
 
+<p>
+  <a href="assets/screenshots/offer-alert-settings.jpg"><img src="assets/screenshots/offer-alert-settings.jpg" width="280" alt="Offer alert settings with buy and sell options and a premium limit"></a>
+</p>
+
 ### Take a new buy offer from Telegram
 
 1. Tap **Browse offers**. To narrow the list, open **Offer filters** and change the currency, payment method, or coordinator. Each change saves immediately. Once you’ve chosen your filters, tap **Browse offers**. New profiles start with all currencies, any payment method, and all listed coordinators.
@@ -62,6 +70,11 @@ The bridge checks about once a minute while it’s ready to browse. Keep your co
 3. Review the offer and its taker bond percentage. Once you have an amount to confirm, the bot also shows an estimate in sats if the offer includes enough pricing data. After you take the offer, RoboSats provides the exact bond invoice. Pay it in your Lightning wallet, then tap **Continue order** and **Continue on phone** when the order is ready.
 
 If you change your mind before paying the bond, tap **Release offer**, then **Confirm release**. RoboSats may give the robot a short cooldown. This action is available while the bridge can verify that your bond remains unpaid.
+
+<p>
+  <a href="assets/screenshots/offer-filters.png"><img src="assets/screenshots/offer-filters.png" width="280" alt="Offer filters for currency, payment method, and coordinator"></a>
+  <a href="assets/screenshots/offer-details.png"><img src="assets/screenshots/offer-details.png" width="280" alt="Offer details showing the amount range, premium, taker bond, and payment methods"></a>
+</p>
 
 ### Resume a buy order from desktop
 
