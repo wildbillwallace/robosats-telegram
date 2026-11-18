@@ -6,7 +6,7 @@
 
 **Create your own bot once, then use it for every trade.** Your bot gives you a private chat for your orders, seller messages, and updates from the bridge running on your computer. On your phone, tap the link to BotFather, tap **Start** if shown, and send `/newbot`. BotFather asks for a display name and a username, then gives you a token to paste into the bridge. Once the required tools are installed and Tor is connected, you can pair in a few minutes. A dedicated bot you already own works too. [Open BotFather in Telegram](https://t.me/BotFather) · [Follow the pairing steps](#2-create-and-connect-your-telegram-bot)
 
-Before you leave, connect to Tor, double-click **Start RoboSats Bridge** on your Mac or Windows PC, and wait for **Bridge ready**. After one-time setup, that’s all you need to do at the computer. The bridge automatically prevents idle sleep using macOS `caffeinate` or the built-in Windows equivalent. You can lock the screen and head out. Keep the launcher open, the computer online, and Tor connected. Leave the lid open if closing it puts your laptop to sleep.
+Before you leave, connect to Tor, double-click **Start RoboSats Bridge** on your Mac or Windows PC, and wait for **Bridge ready**. After one-time setup, you can do the rest from your phone. If you chose to keep your Garage Key for one session only, enter it again each time you start the bridge to trade. The bridge automatically prevents idle sleep using macOS `caffeinate` or the built-in Windows equivalent. You can lock the screen and head out. Keep the launcher open, the computer online, and Tor connected. Leave the lid open if closing it puts your laptop to sleep.
 
 When you’re ready to buy, open your private bot chat on your phone and tap **Browse offers**. The bot gives you the bond invoice and lets you set your Lightning routing budget and submit your payout invoice. Use your Lightning wallet and usual payment app on the same phone to make the payments. The seller releases escrow through RoboSats.
 
@@ -16,7 +16,7 @@ This independent project supports **mainnet BTC buy orders taken from the public
 
 ## 1. Install
 
-Download and extract the project, connect to Tor, and double-click the launcher for your computer. The platform guides cover any missing system tools. The launcher prepares the project’s Python environment and libraries automatically, then opens the setup prompts in its own window.
+On this GitHub page, choose **Code → Download ZIP** and extract it. Follow the guide for your computer to check for Python, Node.js with npm, and GnuPG. Connect to Tor, then double-click the launcher for your computer. The launcher creates the project’s Python environment and installs the Python and chat libraries automatically. You can also use an existing Python environment by following your platform guide.
 
 | Computer | Setup guide | Start the bridge |
 | --- | --- | --- |
@@ -29,7 +29,7 @@ On both platforms, use Brave’s private Tor window, Tor Browser, or standalone 
 
 Everyone sets up their own bot and pairs it once. Your bridge sends trade updates to your private chat with that bot. On your next trade, open the same bot on your phone after starting the bridge.
 
-After pairing, the bridge automatically sets up the **Menu** button and shows your choices as you go. In BotFather, creating the bot and getting its token is all you need to do. When you’re ready to trade, tap the options in your bot chat. The payout and payment buttons appear when you reach those steps.
+When the bridge starts, it sets up the **Menu** button and sends the first set of buttons to your bot chat. If you don’t see **Menu**, send `/menu`. In BotFather, creating the bot and getting its token is all you need to do. When you’re ready to trade, tap the options in your bot chat. The payout and payment buttons appear when you reach those steps.
 
 1. **Find BotFather on your phone.** Tap [Open BotFather in Telegram](https://t.me/BotFather). If the link opens a browser, tap **Open in Telegram**. You can also open Telegram yourself, tap **Chats**, and search for `@BotFather`. Choose the result with the verification checkmark and tap **Start** if it appears.
 2. **Create your bot and copy its token.** In the BotFather chat, type `/newbot` and tap **Send**. Give the bot a display name, such as **My Sats Bridge**. Next, choose a unique `@username` ending in `bot`. This is the name you’ll search for to open your new bot. Copy the entire token BotFather gives you, including the numbers, colon, and characters after it. If you already own a dedicated bot, send `/mybots` in BotFather and select it to find its token. Use a separate bot if another automation still reads your existing bot’s messages.
@@ -67,7 +67,7 @@ The bridge checks about once a minute while it’s ready to browse. Keep your co
 
 1. Tap **Browse offers**. To narrow the list, open **Offer filters** and change the currency, payment method, or coordinator. Each change saves immediately. Once you’ve chosen your filters, tap **Browse offers**. New profiles start with all currencies, any payment method, and all listed coordinators.
 2. Open an offer. The offer already identifies its coordinator. When the bridge needs a robot, it checks which of your Garage robots that coordinator recognizes and lets you choose by nickname. Tap **Find more robots** to search the next batch. To use a fresh robot, create it in your existing Garage in RoboSats, open the offer with it there, then search again in Telegram. The same Garage Key works for the new robot. To switch robots, tap **Choose another robot** on the offer review.
-3. Review the offer and its taker bond percentage. Once you have an amount to confirm, the bot also shows an estimate in sats if the offer includes enough pricing data. After you take the offer, RoboSats provides the exact bond invoice. Pay it in your Lightning wallet, then tap **Continue order** and **Continue on phone** when the order is ready.
+3. Review the offer and its taker bond percentage. If it has an amount range, reply to the bot’s prompt with the amount you want to buy. The bot shows an estimated bond in sats when enough pricing data is available. Tap **Confirm take** to get the exact bond invoice from RoboSats. Pay it with a Lightning wallet that supports RoboSats hold invoices, then tap **Continue order** and **Continue on phone** when the order is ready.
 
 If you change your mind before paying the bond, tap **Release offer**, then **Confirm release**. RoboSats may give the robot a short cooldown. This action is available while the bridge can verify that your bond remains unpaid.
 
@@ -108,14 +108,14 @@ Seller replies appear in the same bot chat when the bridge receives them. If the
 
 ## Restart and troubleshooting
 
-Open your terminal in the same folder and run the launcher for your platform. If you use your own Python environment, activate it and run `python robosats_monitor.py`.
+To restart, stop the bridge with **Ctrl+C** in its window and double-click the same launcher. If you use your own Python environment, activate it and run `python robosats_monitor.py` from the project folder.
 
-- **Tor is unavailable.** Check that your Tor Browser or Brave Tor window says it is connected, or that your standalone Tor service is running. Keep the browser window open. Use **Settings → Tor SOCKS port** if your local setup uses a custom port. For automatic detection, the default saved value is `9050`. The bridge also checks `9150` and looks for Brave’s Tor process.
-- **Pairing timed out or the bot is silent.** During setup, rerun the start command and send the new code from the private chat opened by the terminal link. After setup, make sure only one copy of the bridge is using that bot, then try **Send Telegram test**. To accept phone actions, the bridge must be browsing offers or monitoring an order.
+- **Tor is unavailable.** Check that your Tor Browser or Brave Tor window says it is connected, or that your standalone Tor service is running. Keep the browser window open. The bridge checks ports `9050` and `9150` and looks for Brave’s Tor process. If you already paired the bot and need to change a custom port, stop the bridge and run the launcher with the `settings` argument in a terminal. Use `bash start.sh settings` on macOS or `.\start-windows.cmd settings` in PowerShell from the project folder. Select **Tor SOCKS port**, enter your port, then press **Enter** at the settings menu to exit and restart normally.
+- **Pairing timed out or the bot is silent.** During setup, start the launcher again and send the new code as a message in your bot’s private chat. After setup, make sure only one copy of the bridge is using that bot and the launcher shows **Bridge ready**. Send `/menu` from the same private bot chat you paired.
 - **A trade button is slow or unresponsive.** Send `/trade` in the private bot chat to request the current status. For a payout or payment confirmation, use Telegram’s **Reply** gesture on the latest confirmation message and type `CONFIRM`. If you already sent an invoice or payment and the result is unclear, check the order in RoboSats before retrying.
-- **Mobile actions or chat cannot start.** Check `gpg --version` and `node --version`, then restart the bridge after installing any missing tools. On Windows, the bridge also searches the standard Gpg4win folders.
+- **Mobile actions or chat cannot start.** Check `gpg --version` and `node --version`, then restart after installing any missing tools. On Windows, the bridge also searches standard Gpg4win folders. Make sure you started the bridge with your Garage Key if you want to trade or chat with the seller.
 
-For a read-only authenticated check, add `check --coordinator temple --order ORDER_NUMBER` to your launch command after selecting a robot for that coordinator. Use `lake` for The Big Lake.
+For a read-only authenticated check, select or use a robot for that coordinator first, then add `check --coordinator temple --order ORDER_NUMBER` to the launcher command. Use `lake` for The Big Lake.
 
 ## Local tests
 

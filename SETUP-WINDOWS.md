@@ -27,7 +27,7 @@ If you installed Python without the `py` command, check `python --version` inste
 - **Tor Browser:** Open [Tor Browser for Windows](https://www.torproject.org/download/), click **Connect**, and leave it open. The bridge checks its usual port (**9150**) automatically.
 - **Standalone Tor:** Start your local Tor service. The bridge checks the default port (**9050**) automatically.
 
-At the **Tor SOCKS port** prompt, press **Enter** for automatic detection. If you use a custom standalone Tor port, enter it there or change it later in **Settings**.
+At the **Tor SOCKS port** prompt, press **Enter** for automatic detection. If you use a custom standalone Tor port, enter it there. After pairing, you can change it by running `.\start-windows.cmd settings` in PowerShell from the project folder and selecting **Tor SOCKS port**.
 
 ## 3. Download and start the bridge
 
@@ -35,13 +35,14 @@ At the **Tor SOCKS port** prompt, press **Enter** for automatic detection. If yo
 2. In the extracted folder, double-click **Start RoboSats Bridge.cmd**. It may appear as **Start RoboSats Bridge** if File Explorer hides extensions.
 3. Follow the first-run prompts in the command window that opens. On later runs, double-click the same launcher and wait for **Bridge ready**.
 
-The launcher creates a Python environment in the project folder and installs the bridge’s libraries on the first run. If you prefer PowerShell or cloned the repository with Git, run `.\start-windows.cmd` from the project folder.
+The launcher creates `.venv` in the project folder and downloads the Python and chat libraries on the first run. Later runs reuse them and reinstall when the dependency files change. If you prefer PowerShell or cloned the repository with Git, run `.\start-windows.cmd` from the project folder.
 
 ### Use an existing Python environment
 
-Activate the environment you want to use. In the project folder, run:
+Activate the environment you want to use. In the project folder, run these commands and check that Python is 3.10 or newer:
 
 ```powershell
+python --version
 python -m pip install -r requirements.txt
 npm.cmd ci --ignore-scripts
 python robosats_monitor.py
