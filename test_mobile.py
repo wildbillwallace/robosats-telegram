@@ -22,6 +22,37 @@ def trade(status, **extra):
 
 
 class MobileTests(TestCase):
+    def test_paid_bond_continues_directly_and_unpaid_bond_keeps_invoice(self):
+        for status in (3, 6, 7, 8, 9, 10, 13):
+            with self.subTest(status=status):
+                bot = Mock()
+                row = trade(status, bond_invoice='lnbc' + 'a' * 30, bond_satoshis=500,
+                            expires_at='2999-01-01T00:00:00Z')
+                browser = MobileOffers(123, {'temple': 'Temple'}, Mock(), bot,
+                                       Mock(return_value=row), Mock(), Mock(), True)
+                browser.handle(callback('active:temple:3'))
+                if status == 3:
+                    self.assertIsNone(browser.handoff)
+                    self.assertIn('Continue order', str(bot.call_args_list))
+                else:
+                    self.assertEqual(browser.handoff, ('temple', 3))
+                    self.assertFalse(any(call.args[0] == 'sendMessage' for call in bot.call_args_list))
+
+    def test_connected_notice_contains_current_payout_action(self):
+        mobile = MobileTrade(123, 3, 'Temple', Mock(), Mock(), Mock(), Mock())
+        for status in (6, 8):
+            row = trade(status, maker_locked=True, taker_locked=True, invoice_amount=12_000)
+            notice = mobile.status_message(row, connected=True)
+            self.assertIn('Temple #3 · Connected in Telegram', notice['text'])
+            self.assertIn('Your bond is locked.', notice['text'])
+            self.assertIn('communicate with the seller', notice['text'])
+            self.assertNotIn('Tap Menu', notice['text'])
+            self.assertEqual(notice['reply_markup']['inline_keyboard'][0][0]['text'],
+                             '⚡ Set up Lightning payout')
+        notice = mobile.status_message(trade(10), connected=True)
+        self.assertIn('Payment marked sent', notice['text'])
+        self.assertNotIn('reply_markup', notice)
+
     def test_alert_caps_are_directional_and_repeat_scans_do_not_resend(self):
         high = dict(listing(), id=4, premium='3.00')
         low = dict(listing(), id=5, premium='1.00')
@@ -131,7 +162,6 @@ class MobileTests(TestCase):
         self.assertIsNone(browser.confirmation)
         self.assertIn('Open order #3', str(telegram.call_args.args))
         browser.handle(callback('active:bazaar:3'))
-        browser.handle(callback('handoff:bazaar:3'))
         self.assertEqual(browser.handoff, ('bazaar', 3))
         take.assert_not_called()
 
@@ -216,7 +246,6 @@ class MobileTests(TestCase):
         take.assert_not_called()
         browser.handle(callback('resume'))
         browser.handle(callback('active:temple:3'))
-        browser.handle(callback('handoff:temple:3'))
         self.assertEqual(browser.handoff, ('temple', 3))
         take.assert_not_called()
 
@@ -302,8 +331,6 @@ class MobileTests(TestCase):
         read = Mock(return_value=trade(9, escrow_locked=True))
         bot, write = Mock(return_value={'message_id': 17}), Mock()
         mobile = MobileTrade(123, 3, 'Temple', read, write, Mock(), bot)
-        mobile.show_controls()
-        self.assertEqual(bot.call_args.args[1]['reply_markup'], {'remove_keyboard': True})
         self.assertTrue(mobile.handle({'message': {'text': '/menu'}}))
         notice = bot.call_args.args[1]
         self.assertIn('Order amount: 25.00 USD', notice['text'])

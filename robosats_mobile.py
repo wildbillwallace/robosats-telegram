@@ -358,9 +358,7 @@ class MobileOffers(OfferBrowser):
                       buttons)
             self.telegram('sendMessage', {'chat_id': self.chat, 'text': invoice})
         elif status in RESUMABLE:
-            label = 'Continue on phone' if self.chat_enabled else 'Start status alerts'
-            self.send(f'{self.names[alias]} #{order_id} is ready to resume.',
-                      [[{'text': label, 'callback_data': f'handoff:{alias}:{order_id}'}]])
+            self.handoff = (alias, order_id)
         else:
             self.send('There is no payable bond or resumable buyer trade for that order.', self.navigation())
 
@@ -560,13 +558,6 @@ class MobileTrade:
             params['reply_markup'] = {'inline_keyboard': [[button] for button in buttons]}
         return self.telegram('sendMessage', params)
 
-    def show_controls(self):
-        return self.telegram('sendMessage', {
-            'chat_id': self.chat,
-            'text': f'Telegram is connected to {self.name} #{self.order_id}. '
-                    'Tap Menu to check your order. Once seller chat opens, type a message here to contact the seller.',
-            'reply_markup': {'remove_keyboard': True},
-        })
 
     def current(self):
         row = self.read()
@@ -644,7 +635,7 @@ class MobileTrade:
             raise BridgeError('RoboSats did not report the expected state. Check /trade before retrying.')
         self.send('RoboSats accepted the update. Use /trade for the current status.')
 
-    def status_message(self, row):
+    def status_message(self, row, *, connected=False):
         status = row.get('status')
         text = f'{self.name} #{self.order_id} · {row.get("status_message", "Check current order state")}'
         buttons = []
@@ -657,7 +648,10 @@ class MobileTrade:
             except BridgeError:
                 pass
             else:
-                text += '\nRoboSats is ready for your Lightning payout invoice.'
+                text = (f'{self.name} #{self.order_id} · Set up your Lightning payout\n'
+                        'Your bond is locked. ')
+                text += ('Set up your Lightning payout while the seller locks the sats in escrow.'
+                         if status == 6 else 'The seller has locked the sats in escrow. Set up your Lightning payout.')
                 buttons.append({'text': '⚡ Set up Lightning payout', 'callback_data': f'invoice:{self.order_id}'})
         if status == 9 and row.get('escrow_locked') is True:
             amount = decimal(row.get('amount'))
@@ -671,6 +665,15 @@ class MobileTrade:
             text = f'{self.name} #{self.order_id} · Payment marked sent. Waiting for the seller to release escrow.'
         if status == 14:
             text = f'{self.name} #{self.order_id} · Trade completed successfully ✅'
+        if connected:
+            prefix = f'{self.name} #{self.order_id} · '
+            detail = text.removeprefix(prefix)
+            if status in {6, 8} and buttons:
+                detail = text.split('\n', 1)[1]
+            text = f'{prefix}Connected in Telegram\n\n{detail}'
+            if status in {6, 7, 8}:
+                text += ('\n\nWhen seller chat opens, you can type messages here '
+                         'to communicate with the seller.')
         message = {'text': text}
         if buttons:
             message['reply_markup'] = {'inline_keyboard': [[button] for button in buttons]}

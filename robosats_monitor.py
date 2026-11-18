@@ -430,6 +430,7 @@ def run(args, cfg, bridge=None):
     with lock:
         state = json.loads(statepath.read_text()) if statepath.exists() else {'observed': None, 'pending': []}
         trade = bridge.trade if bridge is not None else None
+        connecting = trade is not None
 
         def send_pending(item):
             if isinstance(item, dict):
@@ -452,9 +453,14 @@ def run(args, cfg, bridge=None):
                 trade_details = current.pop('trade_details', None)
                 if state.pop('outage', False):
                     state['pending'].append(f'{name} #{args.order}: order monitoring connection recovered.')
-                notice = (trade.status_message(trade_details)
-                          if trade_details is not None and current != state.get('observed') else None)
+                changed = current != state.get('observed')
+                notice = (trade.status_message(trade_details, connected=connecting)
+                          if trade_details is not None and (changed or connecting) else None)
+                if connecting and notice is not None and not changed:
+                    state['pending'].append({'stage': current, 'notice': notice})
                 enqueue(state, current, args.order, name, notice=notice)
+                if notice is not None:
+                    connecting = False
                 failures = 0
                 peer_key = None
                 if current['status'] in CHAT_STATUSES:
@@ -734,11 +740,6 @@ def start_bridge(args, cfg, seed=None, interactive_search=True):
             lambda: mobile_request(cfg, '/api/order/', {'order_id': args.order}),
             lambda payload: mobile_request(cfg, '/api/order/', {'order_id': args.order}, payload),
             keys.sign_invoice, lambda method, params: bridge_telegram(cfg, method, params))
-        try:
-            bridge.trade.show_controls()
-        except BaseException:
-            bridge.lock.close()
-            raise
         return temp, bridge
     except BaseException:
         close_keys(temp)

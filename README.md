@@ -67,7 +67,7 @@ The bridge checks about once a minute while it’s ready to browse. Keep your co
 
 1. Tap **Browse offers**. To narrow the list, open **Offer filters** and change the currency, payment method, or coordinator. Each change saves immediately. Once you’ve chosen your filters, tap **Browse offers**. New profiles start with all currencies, any payment method, and all listed coordinators.
 2. Open an offer. The offer already identifies its coordinator. When the bridge needs a robot, it checks which of your Garage robots that coordinator recognizes and lets you choose by nickname. Tap **Find more robots** to search the next batch. To use a fresh robot, create it in your existing Garage in RoboSats, open the offer with it there, then search again in Telegram. The same Garage Key works for the new robot. To switch robots, tap **Choose another robot** on the offer review.
-3. Review the offer and its taker bond percentage. If it has an amount range, reply to the bot’s prompt with the amount you want to buy. The bot shows an estimated bond in sats when enough pricing data is available. Tap **Confirm take** to get the exact bond invoice from RoboSats. Pay it with a Lightning wallet that supports RoboSats hold invoices, then tap **Continue order** and **Continue on phone** when the order is ready.
+3. Review the offer and its taker bond percentage. If it has an amount range, reply to the bot’s prompt with the amount you want to buy. The bot shows an estimated bond in sats when enough pricing data is available. Tap **Confirm take** to get the exact bond invoice from RoboSats. Pay it with a Lightning wallet that supports RoboSats hold invoices, then tap **Continue order**. Once RoboSats confirms the bond is locked, the bridge opens the current trade stage automatically.
 
 If you change your mind before paying the bond, tap **Release offer**, then **Confirm release**. RoboSats may give the robot a short cooldown. This action is available while the bridge can verify that your bond remains unpaid.
 
@@ -97,7 +97,7 @@ Keep the RoboSats order available for your first live trade. If Telegram is dela
   <a href="assets/screenshots/lightning-invoice-confirmation.jpg"><img src="assets/screenshots/lightning-invoice-confirmation.jpg" width="280" alt="Confirm a Lightning payout invoice and its routing budget in Telegram"></a>
 </p>
 
-Set up your Lightning payout on your phone, then confirm the invoice and routing budget. Screenshots show an earlier version of the escrow status wording.
+Set up your Lightning payout on your phone, then confirm the invoice and routing budget. These screenshots show an earlier version. The bridge now opens the trade automatically after Continue order and uses clearer escrow messages.
 
 <p>
   <a href="assets/screenshots/lightning-payout-received.png"><img src="assets/screenshots/lightning-payout-received.png" width="280" alt="Muun notification confirms BTC received while Telegram shows payment confirmation and payout updates"></a>
