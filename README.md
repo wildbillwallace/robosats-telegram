@@ -1,5 +1,7 @@
 # RoboSats Telegram Bridge
 
+![A suspension bridge connects the RoboSats and Telegram logos, with a gold Lightning bolt above the center span](assets/robosats-telegram-banner.jpeg)
+
 **Start the bridge on your computer, walk away, and buy bitcoin on RoboSats from your phone.** You can browse and take an offer, chat with the seller, confirm payment, and follow your Lightning payout from your own Telegram bot.
 
 **Create your own bot once, then use it for every trade.** Your bot gives you a private chat for your orders, seller messages, and updates from the bridge running on your computer. On your phone, tap the link to BotFather, tap **Start** if shown, and send `/newbot`. BotFather asks for a display name and a username, then gives you a token to paste into the bridge. Once the required tools are installed and Tor is connected, you can pair in a few minutes. A dedicated bot you already own works too. [Open BotFather in Telegram](https://t.me/BotFather) · [Follow the pairing steps](#2-create-and-connect-your-telegram-bot)
