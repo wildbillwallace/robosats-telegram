@@ -1,12 +1,11 @@
 # Windows setup
 
-Use **Windows 10 or 11** and **PowerShell**. This guide runs the bridge directly on Windows.
+Use **Windows 10 or 11**. You can start the bridge from File Explorer.
 
 ## 1. Install the tools
 
 Install only what you are missing:
 
-- [Git for Windows](https://git-scm.com/install/windows) to download the repository.
 - [Python for Windows](https://www.python.org/downloads/windows/) (3.10 or newer). If using the traditional installer, select **Add Python to PATH** and keep the Python launcher enabled.
 - [Node.js LTS for Windows](https://nodejs.org/en/download) (22 or newer). The installer includes npm.
 - [Gpg4win](https://www.gpg4win.org/download.html) for GnuPG. Use the installer defaults.
@@ -14,7 +13,6 @@ Install only what you are missing:
 If the tools are already installed, open a **new PowerShell window** and check:
 
 ```powershell
-git --version
 py -3 --version
 node --version
 npm.cmd --version
@@ -33,15 +31,11 @@ At the **Tor SOCKS port** prompt, press **Enter** for automatic detection. If yo
 
 ## 3. Download and start the bridge
 
-In PowerShell, run:
+1. On the [GitHub project page](https://github.com/wildbillwallace/robosats-telegram), choose **Code → Download ZIP**. Right-click the downloaded ZIP and choose **Extract All**.
+2. In the extracted folder, double-click **Start RoboSats Bridge.cmd**. It may appear as **Start RoboSats Bridge** if File Explorer hides extensions.
+3. Follow the first-run prompts in the command window that opens. On later runs, double-click the same launcher and wait for **Bridge ready**.
 
-```powershell
-git clone https://github.com/wildbillwallace/robosats-telegram.git
-cd robosats-telegram
-.\start-windows.cmd
-```
-
-The launcher prepares the Python environment and chat libraries on the first run, then opens the setup prompts. Run `.\start-windows.cmd` from the same folder on later runs.
+The launcher creates a Python environment in the project folder and installs the bridge’s libraries on the first run. If you prefer PowerShell or cloned the repository with Git, run `.\start-windows.cmd` from the project folder.
 
 ### Use an existing Python environment
 
@@ -57,12 +51,12 @@ On later runs, activate the environment and run only `python robosats_monitor.py
 
 ## 4. Pair your bot
 
-Follow [Create and connect your Telegram bot](README.md#2-create-and-connect-your-telegram-bot), then [try it without a trade](README.md#try-it-without-a-trade). Wait for the test message on your phone before leaving the computer.
+Use a bot you own. Follow [the BotFather and pairing steps](README.md#2-create-and-connect-your-telegram-bot), then [try it without a trade](README.md#try-it-without-a-trade). Wait for **Bridge ready** before leaving the computer.
 
 ## 5. Leave the bridge running for your phone
 
-Start **Browse offers on Telegram** or **Monitor an existing order** before you leave. Keep the PowerShell window open, the PC online, and your Tor connection running. You can minimize PowerShell, lock the PC, or let the screen turn off. The bridge asks Windows to prevent idle sleep while browsing or monitoring. The setup menu is idle until you choose a mode.
+Run the bridge and wait for **Bridge ready** before you leave. Keep the command window open, the PC online, and your Tor connection running. You can minimize the window, lock the PC, or let the screen turn off. The bridge asks Windows to prevent idle sleep while browsing or monitoring.
 
-Leave the lid open if closing it sleeps or hibernates the laptop. If the PC goes to sleep or loses its connection, wake or reconnect it and check **Trade status** before retrying an action. Press **Ctrl+C** to stop the bridge and release the sleep request. To resume, run the same start command and choose [Monitor an existing order](README.md#resume-a-buy-order-from-desktop) if you already took an offer.
+Leave the lid open if closing it sleeps or hibernates the laptop. If the PC goes to sleep or loses its connection, wake or reconnect it. Use **Menu → Show bridge controls** in your bot chat to check the order before retrying an action. Press **Ctrl+C** to stop the bridge and release the sleep request. To resume, start the bridge again and tap [Resume an order](README.md#resume-a-buy-order-from-desktop) if you already took an offer.
 
-If Node.js, Python, or Git is missing from PowerShell after installation, open a fresh PowerShell window and repeat the version checks above. For Tor, pairing, or Telegram problems, see [Restart and troubleshooting](README.md#restart-and-troubleshooting).
+If a tool is missing from PowerShell after installation, open a fresh PowerShell window and repeat the version checks above. For Tor, pairing, or Telegram problems, see [Restart and troubleshooting](README.md#restart-and-troubleshooting).

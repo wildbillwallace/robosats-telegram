@@ -42,15 +42,15 @@ jobs:
         if: runner.os == 'Windows'
         shell: cmd
         run: |
-          call start-windows.cmd --help || exit /b 1
-          call start-windows.cmd --help || exit /b 1
+          call "Start RoboSats Bridge.cmd" --help || exit /b 1
+          call "Start RoboSats Bridge.cmd" --help || exit /b 1
           .venv\Scripts\python.exe -m unittest discover -v
       - name: Verify macOS launcher and Python tests
         if: runner.os == 'macOS'
         run: |
           gpg --version
-          bash start.sh --help
-          bash start.sh --help
+          "./Start RoboSats Bridge.command" --help
+          "./Start RoboSats Bridge.command" --help
           .venv/bin/python -m unittest discover -v
       - name: Test Nostr locally
         run: npm test

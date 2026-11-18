@@ -7,6 +7,48 @@ from robosats_offers import amount, book
 
 
 class SetupTests(unittest.TestCase):
+    def test_normal_launch_starts_phone_mode_without_terminal_menu(self):
+        from tempfile import TemporaryDirectory
+        from robosats_monitor import main
+
+        with TemporaryDirectory() as directory:
+            config = Path(directory) / 'settings.json'
+            config.touch()
+            with patch('sys.argv', ['robosats_monitor.py', '--config', str(config)]), \
+                 patch('sys.stdin.isatty', return_value=True), \
+                 patch('robosats_monitor.load_config', return_value={'port': 9050}), \
+                 patch('robosats_monitor.browse_offers') as browse, \
+                 patch('robosats_monitor.interactive') as terminal:
+                self.assertEqual(main(), 0)
+            browse.assert_called_once()
+            self.assertTrue(browse.call_args.kwargs['prompt_for_garage'])
+            terminal.assert_not_called()
+
+    def test_launcher_can_unlock_garage_for_one_run_or_save_it(self):
+        from types import SimpleNamespace
+        from robosats_monitor import browse_offers
+
+        cfg = {'port': 9050}
+        args = SimpleNamespace(config=Path('test-settings'), unlock=False)
+
+        for key, answer in (('', ''), ('fixture-key', ''), ('fixture-key', 'y')):
+            with self.subTest(entered=bool(key), answer=answer), \
+                 patch('robosats_monitor.session_garage_seed', return_value=None), \
+                 patch('robosats_monitor.read_garage_key', return_value=key) as read, \
+                 patch('robosats_monitor.decode_garage_key', return_value=b'fixture-seed'), \
+                 patch('robosats_monitor.load_config', return_value=cfg), \
+                 patch('robosats_monitor.save_config') as save, \
+                 patch('robosats_offers.run_offer_browser', return_value=None) as launch, \
+                 patch('builtins.input', return_value=answer), patch('builtins.print'):
+                browse_offers(args, cfg, prompt_for_garage=True)
+                read.assert_called_once_with(allow_empty=True)
+                browser = launch.call_args.args[-1](1, {}, None, None)
+                self.assertEqual(browser.chat_enabled, bool(key))
+                if answer == 'y':
+                    save.assert_called_once_with(args.config, {**cfg, 'garage_key': key})
+                else:
+                    save.assert_not_called()
+
     def test_pairing_requires_the_expected_private_chat_and_code(self):
         def update(number, sender, chat, kind, text):
             return {

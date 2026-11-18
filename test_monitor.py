@@ -75,6 +75,33 @@ class Tests(unittest.TestCase):
     def test_initial_already_locked(self):
         self.assertIn('escrow is locked',m.message(876543,{'status':9,'escrow_locked':True},True))
 
+    def test_monitor_pushes_trade_actions_and_discards_an_outdated_payment_prompt(self):
+        from types import SimpleNamespace
+        from robosats_mobile import MobileTrade
+
+        for offline in (False, True):
+            with self.subTest(offline=offline), tempfile.TemporaryDirectory() as directory:
+                order = 876543
+                responses = [self.response(9, True, is_buyer=True, amount='25.00', currency=1),
+                             self.response(10, True, is_buyer=True), self.response(14, False, is_buyer=True)]
+                states = [m.snapshot(row, order, include_trade=True) for row in responses]
+                trade = MobileTrade(1, order, 'Temple of Sats', Mock(), Mock(), Mock(), Mock())
+                bridge = SimpleNamespace(trade=trade, nostr=None)
+                args = SimpleNamespace(command='run', coordinator='temple', order=order, interval=30,
+                                       config=Path(directory) / 'config.json')
+                with patch.object(m, 'fetch', side_effect=states), patch.object(m, 'tor_port', return_value=9050), \
+                     patch.object(m, 'poll_chat'), patch.object(m, 'poll_trade_updates'), \
+                     patch.object(m, 'wait_for_next_check'), patch('builtins.print'), \
+                     patch.object(m, 'telegram', side_effect=[
+                         m.MonitorError('offline') if offline else None, None, None]) as send:
+                    m.run(args, {'port': 9050}, bridge)
+                payment, sent, complete = [call.args[-1] for call in send.call_args_list]
+                self.assertEqual(payment['reply_markup']['inline_keyboard'][0][0]['text'], 'Confirm Sent')
+                self.assertIn('Order amount: 25.00 USD', payment['text'])
+                self.assertIn('Waiting for the seller to release escrow', sent['text'])
+                self.assertNotIn('reply_markup', sent)
+                self.assertNotIn('reply_markup', complete)
+
     def test_telegram_failure_and_secret_redaction(self):
         s=Mock(); s.post.side_effect=requests.ConnectionError('secret URL')
         with self.assertRaises(m.MonitorError) as c:

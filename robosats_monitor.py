@@ -22,8 +22,13 @@ from robosats_platform import keep_awake, lock_file, protect_settings, settings_
 
 ONION = 'http://ngdk7ocdzmz5kzsysa3om6du7ycj2evxp2f2olfkyq37htx3gllwp2yd.onion'
 COORDINATORS = {
+    # Mainnet onion addresses from RoboSats frontend/static/federation.json.
     'temple': ('Temple of Sats', ONION),
     'lake': ('The Big Lake', 'http://4t4jxmivv6uqej6xzx2jx3fxh75gtt65v3szjoqmc4ugdlhipzdat6yd.onion'),
+    'bazaar': ('LibreBazaar', 'http://librebazovfmmkyi2jekraxsuso3mh622avuuzqpejixdl5dhuhb4tid.onion'),
+    'freeport': ('FreePort', 'http://2enoseg66hme76khjjn2qvrhipnzwgwa44mewgrdphrxbhzcxd2vdiqd.onion'),
+    'ammanaya': ('Ammanaya', 'http://ammannjgzybw4qm2odmci7xgolh5grzijidacjxose5tthm375dcopad.onion'),
+    'gumpellite': ('Gumpellite', 'http://jvnfeiy3aizcpva6zekd3v6o5kpzduqeeqqihhtudhuqqa7e5jzm7kyd.onion'),
 }
 
 HOME = settings_directory()
@@ -108,17 +113,28 @@ def pair_telegram(cfg, expected_chat=None, timeout=120):
     raise MonitorError('Pairing timed out. Run setup again and send the new code from your own private chat.')
 
 
-def read_garage_key():
-    value = getpass.getpass('RoboSats Garage Key (robo1…): ').strip()
-    value = ''.join(value.removeprefix('\x1b[200~').removesuffix('\x1b[201~').split()).lower()
-    decode_garage_key(value)
-    return value
+def read_garage_key(allow_empty=False):
+    prompt = ('RoboSats Garage Key (robo1…) [Enter to browse and preview]: '
+              if allow_empty else 'RoboSats Garage Key (robo1…): ')
+    while True:
+        value = getpass.getpass(prompt).strip()
+        value = ''.join(value.removeprefix('\x1b[200~').removesuffix('\x1b[201~').split()).lower()
+        if allow_empty and not value:
+            return ''
+        try:
+            decode_garage_key(value)
+        except ValueError as exc:
+            if not allow_empty:
+                raise MonitorError(str(exc)) from None
+            print(f'{exc} Try again, or press Enter to skip.', file=sys.stderr)
+        else:
+            return value
 
 
-def setup(path):
+def setup(path, *, ask_garage=True):
     if path.exists():
         raise MonitorError('Setup is already complete. Use Settings in the terminal menu.')
-    print('In Telegram, send /newbot to @BotFather and copy its token.')
+    print('In Telegram, open the verified @BotFather bot and send /newbot, or use a bot you already own.')
     bot = getpass.getpass('Telegram bot token (includes the bot ID): ').strip()
     if not re.fullmatch(r'\d+:[A-Za-z0-9_-]+', bot):
         raise MonitorError('Expected the full BotFather token including the colon.')
@@ -132,7 +148,7 @@ def setup(path):
     runtime = {**cfg, 'port': tor_port(cfg['port'])}
     cfg['chat'] = pair_telegram(runtime, int(chat) if chat else None)
     print(f'Telegram chat ID verified: {cfg["chat"]}')
-    if input('Save your Garage Key locally now? [y/N]: ').strip().lower() in {'y', 'yes'}:
+    if ask_garage and input('Save your Garage Key locally now? [y/N]: ').strip().lower() in {'y', 'yes'}:
         cfg['garage_key'] = read_garage_key()
     bridge_telegram(runtime, 'sendMessage', {'chat_id': cfg['chat'],
                     'text': 'Setup complete. This test did not access a RoboSats order.'})
@@ -194,7 +210,7 @@ def session(port):
     s.proxies = {p: f'socks5h://127.0.0.1:{port}' for p in ('http', 'https')}
     return s
 
-def snapshot(response, order, include_peer=False):
+def snapshot(response, order, include_peer=False, include_trade=False):
     try:
         data = response.json()
     except ValueError:
@@ -213,6 +229,8 @@ def snapshot(response, order, include_peer=False):
     if type(status) is not int or status not in LABELS or type(data.get('escrow_locked')) is not bool:
         raise MonitorError('Unrecognized status/escrow schema; check the API before continuing.')
     state = {'status': status, 'escrow_locked': data['escrow_locked']}
+    if include_trade and data.get('is_buyer') is True:
+        state['trade_details'] = data
     if include_peer and status in CHAT_STATUSES:
         state['peer'] = data.get('maker_nick')
         keys = (data.get('taker_nostr_pubkey'), data.get('maker_nostr_pubkey'))
@@ -234,7 +252,8 @@ def coordinator_request(cfg, endpoint, params, chat_payload=None, *, order_paylo
             payload = chat_payload
         elif (order_payload is not None and endpoint == '/api/order/' and cfg.get('auth')
               and type(params.get('order_id')) is int
-              and order_payload.get('action') in {'take', 'update_invoice', 'confirm'}):
+              and (order_payload.get('action') in {'take', 'update_invoice', 'confirm'}
+                   or order_payload == {'action': 'cancel', 'cancel_status': 1})):
             payload = order_payload
         else:
             raise MonitorError('Unexpected POST destination.')
@@ -293,9 +312,9 @@ def find_order_auth(seed, config, order, extend_search=False):
     raise MonitorError('No active match found. Verify the order number, coordinator, and Garage Key.')
 
 
-def fetch(cfg, order, include_peer=False):
+def fetch(cfg, order, include_peer=False, include_trade=False):
     response = coordinator_get(cfg, '/api/order/', {'order_id': order})
-    return snapshot(response, order, include_peer)
+    return snapshot(response, order, include_peer, include_trade)
 
 
 def poll_chat(cfg, order, peer, state, initial=False, bridge=None, forward=True):
@@ -332,9 +351,10 @@ def poll_chat(cfg, order, peer, state, initial=False, bridge=None, forward=True)
 
 
 def telegram(s, cfg, message):
+    params = {**(message if isinstance(message, dict) else {'text': message}), 'chat_id': cfg['chat']}
     try:
         r = s.post('https://api.telegram.org/bot' + cfg['bot'] + '/sendMessage',
-                   json={'chat_id': cfg['chat'], 'text': message},
+                   json=params,
                    timeout=(20, 45), allow_redirects=False)
         body = r.json()
         if r.status_code != 200 or not isinstance(body, dict) or body.get('ok') is not True:
@@ -349,9 +369,10 @@ def message(order, state, initial=False, name='RoboSats'):
         text += '\nSeller escrow is locked. Open RoboSats to review the next step.'
     return text
 
-def enqueue(state, current, order, name='RoboSats'):
+def enqueue(state, current, order, name='RoboSats', *, notice=None):
     if current != state.get('observed'):
-        state['pending'].append(message(order, current, state.get('observed') is None, name))
+        state['pending'].append({'stage': current, 'notice': notice} if notice else
+                                message(order, current, state.get('observed') is None, name))
         state['observed'] = current
 
 def flush(state, path, sender):
@@ -403,17 +424,32 @@ def run(args, cfg, bridge=None):
         raise MonitorError('Another monitor is already running for this order.') from None
     with lock:
         state = json.loads(statepath.read_text()) if statepath.exists() else {'observed': None, 'pending': []}
+        trade = bridge.trade if bridge is not None else None
+
+        def send_pending(item):
+            if isinstance(item, dict):
+                # A queued action can outlive the trade stage during an outage.
+                if trade is None or item['stage'] != state['observed']:
+                    return
+                if failures:
+                    raise MonitorError('Waiting for a fresh order status before sending trade actions.')
+                item = item['notice']
+            telegram(session(cfg['port']), cfg, item)
+
         failures = 0
         print(f'Monitoring {name} #{args.order} every {args.interval}s through Tor. Ctrl-C stops.')
         while True:
             try:
                 cfg['port'] = tor_port(cfg['port'])
-                current = fetch(cfg, args.order, include_peer=True)
+                current = fetch(cfg, args.order, include_peer=True, include_trade=trade is not None)
                 peer = current.pop('peer', None)
                 participants = current.pop('nostr_participants', None)
+                trade_details = current.pop('trade_details', None)
                 if state.pop('outage', False):
                     state['pending'].append(f'{name} #{args.order}: order monitoring connection recovered.')
-                enqueue(state, current, args.order, name)
+                notice = (trade.status_message(trade_details)
+                          if trade_details is not None and current != state.get('observed') else None)
+                enqueue(state, current, args.order, name, notice=notice)
                 failures = 0
                 peer_key = None
                 if current['status'] in CHAT_STATUSES:
@@ -452,7 +488,7 @@ def run(args, cfg, bridge=None):
                     state['pending'].append(f'{name} #{args.order}: order checks are failing. Open RoboSats and check manually.')
             save(statepath, state)
             try:
-                flush(state, statepath, lambda text: telegram(session(cfg['port']), cfg, text))
+                flush(state, statepath, send_pending)
             except MonitorError as exc:
                 print(str(exc), flush=True)
             if failures == 0 and state['observed']['status'] in TERMINAL and not state['pending']:
@@ -529,31 +565,30 @@ def session_garage_seed(config_path, seed=None):
 
 def choose_coordinator():
     aliases = list(COORDINATORS)
+    print('\nSelect a RoboSats coordinator')
     for index, alias in enumerate(aliases, 1):
         print(f'{index}. {COORDINATORS[alias][0]}')
-    choice = input('Coordinator number: ').strip()
-    if choice not in {str(i) for i in range(1, len(aliases) + 1)}:
-        raise MonitorError('Choose a coordinator from the list.')
-    return aliases[int(choice) - 1]
+    print('Press Enter to go back.')
+    choices = {str(index): alias for index, alias in enumerate(aliases, 1)}
+    while True:
+        choice = input(f'Enter a coordinator number (1–{len(aliases)}): ').strip()
+        if not choice or choice in choices:
+            return choices.get(choice)
+        print('Enter a coordinator number from the list.')
 
 
 def bind_robot(path, cfg):
     alias = choose_coordinator()
+    if alias is None:
+        return
     name = COORDINATORS[alias][0]
     seed = session_garage_seed(path) or decode_garage_key(read_garage_key())
     runtime = {**cfg, 'coordinator': alias, 'port': tor_port(cfg['port'])}
     robots = {}
     for start in range(0, 2**31, ROBOT_SEARCH_BATCH):
         print(f'Looking for robots registered with {name}…', flush=True)
-        for index in range(start, min(start + ROBOT_SEARCH_BATCH, 2**31)):
-            auth = garage_authorization(seed, index)
-            data = lookup_robot(runtime, auth)
-            if data is None:
-                continue
-            nickname = data.get('nickname')
-            if not isinstance(nickname, str) or not nickname or not nickname.isprintable():
-                raise MonitorError(f'{name} did not return a readable robot nickname.')
-            robots[nickname.casefold()] = (nickname, auth, index, data.get('active_order_id'))
+        for nickname, auth, index, order in registered_robots(runtime, seed, start):
+            robots[nickname.casefold()] = (nickname, auth, index, order)
 
         if not robots:
             print(f'No robots found yet. If this is your first time using {name}, open your robot there in RoboSats first.')
@@ -585,23 +620,38 @@ def bind_robot(path, cfg):
             print('Enter a nickname shown above, /more, or /back.')
 
 
+def registered_robots(runtime, seed, start):
+    for index in range(start, min(start + ROBOT_SEARCH_BATCH, 2**31)):
+        auth = garage_authorization(seed, index)
+        data = lookup_robot(runtime, auth)
+        if data is None:
+            continue
+        nickname = data.get('nickname')
+        if not isinstance(nickname, str) or not nickname or not nickname.isprintable():
+            raise MonitorError('The coordinator did not return a readable robot nickname.')
+        yield nickname, auth, index, data.get('active_order_id')
+
+
 def settings(path, cfg):
-    from robosats_offers import CURRENCIES, filters
+    from robosats_offers import CURRENCIES, filter_label, filters
 
     while True:
         currency, method = filters(cfg)
-        print(f'\nOffer filters: {currency} · {method or "any payment method"}')
+        names = {alias: name for alias, (name, _) in COORDINATORS.items()}
+        print('\nBridge settings')
+        print(f'Offer filters: {filter_label(cfg, names)}')
         print(f'Tor SOCKS port: {cfg["port"]}')
-        print('1. Offer filters\n2. Select robot for phone browsing\n3. Save or remove Garage Key\n4. Tor SOCKS port\nEnter. Back')
-        choice = input('Choose: ').strip()
+        print('1. Offer filters (also available in Telegram)\n2. Select a robot for phone trading\n'
+              '3. Save or remove Garage Key\n4. Tor SOCKS port\nPress Enter to go back.')
+        choice = input('Enter a settings option (1–4): ').strip()
         if not choice:
             return
         if choice == '1':
             currency = input(f'Currency code [{currency}], or ? to list: ').strip().upper() or currency
             if currency == '?':
-                print(', '.join(sorted(CURRENCIES)))
+                print('ANY, ' + ', '.join(sorted(CURRENCIES)))
                 continue
-            if currency not in CURRENCIES:
+            if currency != 'ANY' and currency not in CURRENCIES:
                 print('Unknown currency code.')
                 continue
             method = input('Payment method text [Enter for any]: ').strip()
@@ -695,8 +745,9 @@ def interactive(args):
         setup(args.config)
     config = load_config(args.config)
     while True:
-        print('\n1. Browse offers on Telegram\n2. Monitor an existing order\n3. Settings\n4. Send Telegram test\nEnter. Quit')
-        choice = input('Choose: ').strip()
+        print('\nRoboSats Telegram Bridge\n1. Browse offers on Telegram\n2. Monitor an existing order\n'
+              '3. Settings\n4. Send Telegram test\nPress Enter to quit.')
+        choice = input('Enter a menu option (1–4): ').strip()
         if not choice:
             return
         if choice == '1':
@@ -707,7 +758,9 @@ def interactive(args):
             if re.fullmatch(r'[0-9]{1,18}', order) and int(order) > 0:
                 args.order = int(order)
                 args.coordinator = choose_coordinator()
-                break
+                if args.coordinator is not None:
+                    break
+                continue
             print('Enter the numeric order number shown in RoboSats.')
         elif choice == '3':
             settings(args.config, config)
@@ -763,23 +816,29 @@ def interactive(args):
                 close_keys(temp)
 
 
-def browse_offers(args, cfg):
+def browse_offers(args, cfg, *, prompt_for_garage=False):
     from robosats_mobile import MobileOffers, terms
-    from robosats_offers import matches_filters, run_offer_browser
+    from robosats_offers import book, matches_filters, run_offer_browser
 
-    garage_seed = None
-    if input('Enable two-way trade chat and payout from your phone? [y/N]: ').strip().lower() in {'y', 'yes'}:
-        garage_seed = session_garage_seed(args.config)
-        if garage_seed is None:
-            key = getpass.getpass('Garage Key for this session: ')
-            garage_seed = decode_garage_key(''.join(key.strip().split()))
-            del key
+    garage_seed = session_garage_seed(args.config)
+    if garage_seed is None and args.unlock:
+        garage_seed = decode_garage_key(read_garage_key())
+    elif garage_seed is None and prompt_for_garage:
+        print('To trade from your phone, use the Garage Key you backed up in RoboSats. Enter it here on this computer.')
+        key = read_garage_key(allow_empty=True)
+        if key:
+            garage_seed = decode_garage_key(key)
+            if input('Save this Garage Key on this computer for next time? [y/N]: ').strip().lower() in {'y', 'yes'}:
+                save_config(args.config, {**load_config(args.config), 'garage_key': key})
 
     def public_get(runtime, path, params):
         try:
             return coordinator_get(runtime, path, params)
         except MonitorError as exc:
             raise BridgeError(str(exc)) from None
+
+    def alert_book(settings, alias, side):
+        return book(settings, public_get, alias, side)
 
     def discover_port(port):
         try:
@@ -790,7 +849,8 @@ def browse_offers(args, cfg):
     def runtime_for(alias):
         auth = saved_auth(cfg, alias)
         if not auth:
-            raise BridgeError(f'No saved robot for {COORDINATORS[alias][0]}. In the terminal, use Settings → Select robot for phone browsing.')
+            raise BridgeError(f'No robot selected for {COORDINATORS[alias][0]}. '
+                              'Reopen the offer or tap Resume an order in Telegram.')
         return {**cfg, 'coordinator': alias, 'auth': auth}
 
     def active(alias):
@@ -799,16 +859,22 @@ def browse_offers(args, cfg):
     def order(alias, order_id):
         return mobile_request(runtime_for(alias), '/api/order/', {'order_id': order_id})
 
+    def release(alias, order_id):
+        # The unpaid taker sees status 3. The underlying coordinator order must still be public (1).
+        return mobile_request(runtime_for(alias), '/api/order/', {'order_id': order_id},
+                              {'action': 'cancel', 'cancel_status': 1})
+
     def take(alias, reviewed, amount):
         order_id = reviewed['id']
         candidate = runtime_for(alias)
         if garage_seed is not None:
             robot_signing_token(candidate, garage_seed, interactive_search=False)
         if active(alias):
-            raise BridgeError('This robot already has an active trade. Use Resume desktop order.')
+            raise BridgeError('This robot already has an active trade. Tap Resume an order to continue it.')
         current = order(alias, order_id)
         if (current.get('id') != order_id or current.get('status') != 1 or current.get('type') != 1
-                or current.get('is_participant') is not False or not matches_filters(current, cfg)):
+                or current.get('is_participant') is not False or not matches_filters(current, cfg)
+                or cfg.get('offer_coordinator') not in (None, alias)):
             raise BridgeError('This offer is no longer available to this robot.')
         if 'premium_now' in current:
             current['premium'] = current['premium_now']
@@ -819,10 +885,42 @@ def browse_offers(args, cfg):
             payload['amount'] = format(amount, '.2f')
         return mobile_request(candidate, '/api/order/', {'order_id': order_id}, payload)
 
-    handoff = run_offer_browser(cfg, args.config.parent, COORDINATORS, public_get, discover_port,
-        bridge_telegram, lambda chat, names, book, telegram:
-        MobileOffers(chat, names, book, telegram, order, active, take, garage_seed is not None))
-    if handoff:
+    def save_filter(key, value):
+        saved = load_config(args.config)
+        saved[key] = value
+        save_config(args.config, saved)
+
+    def list_robots(alias, start):
+        if garage_seed is None:
+            raise BridgeError('Unlock your Garage Key on the computer to select a robot.')
+        try:
+            robots = list(registered_robots({**cfg, 'coordinator': alias}, garage_seed, start))
+            next_start = start + ROBOT_SEARCH_BATCH
+            return robots, next_start if next_start < 2**31 else None
+        except MonitorError as exc:
+            raise BridgeError(str(exc)) from None
+
+    def select_robot(alias, auth, index):
+        try:
+            saved = load_config(args.config)
+            set_saved_auth(saved, alias, auth)
+            saved.setdefault('robot_slots', {})[alias] = index
+            save_config(args.config, saved)
+        except (OSError, MonitorError):
+            raise BridgeError('Could not save the selected robot on your computer.') from None
+        set_saved_auth(cfg, alias, auth)
+        cfg.setdefault('robot_slots', {})[alias] = index
+
+    alert_urls = {alias: address for alias, (_, address) in COORDINATORS.items()}
+    while True:
+        handoff = run_offer_browser(cfg, args.config.parent, COORDINATORS, public_get, discover_port,
+            bridge_telegram, lambda chat, names, get_book, telegram:
+            MobileOffers(chat, names, get_book, telegram, order, active, take, garage_seed is not None,
+                         save_filter=save_filter, list_robots=list_robots, select_robot=select_robot,
+                         has_robot=lambda alias: bool(saved_auth(cfg, alias)), release=release,
+                         alert_book=alert_book, alert_urls=alert_urls))
+        if not handoff:
+            return
         args.coordinator, args.order = handoff
         args.command = 'run'
         run_handoff(args, runtime_for(args.coordinator), garage_seed)
@@ -870,16 +968,24 @@ def run_handoff(args, cfg, garage_seed):
 def main():
     os.umask(0o077)
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('command', nargs='?', choices=['setup', 'settings', 'check', 'telegram-test', 'offers'])
+    p.add_argument('command', nargs='?', choices=['setup', 'settings', 'check', 'telegram-test', 'offers', 'terminal-menu'])
     p.add_argument('--coordinator', choices=COORDINATORS)
     p.add_argument('--order', type=int)
     p.add_argument('--interval', type=int, default=30)
-    p.add_argument('--config', type=Path, default=HOME / 'config.json')
+    p.add_argument('--config', type=Path)
+    p.add_argument('--unlock', action='store_true', help='enter your Garage Key locally for this session')
     args = p.parse_args()
     if args.interval < 15 or (args.command == 'check' and (not args.order or args.order < 1 or not args.coordinator)):
         p.error('Use an interval of at least 15 seconds. The check command requires --coordinator and a positive --order.')
     try:
-        if args.command is None:
+        if args.config is None:
+            args.config = HOME / 'config.json'
+        if args.command in (None, 'offers'):
+            prompt_for_garage = args.command is None and sys.stdin.isatty()
+            if not args.config.exists():
+                setup(args.config, ask_garage=not prompt_for_garage)
+            browse_offers(args, load_config(args.config), prompt_for_garage=prompt_for_garage)
+        elif args.command == 'terminal-menu':
             interactive(args)
         elif args.command == 'setup':
             setup(args.config)
@@ -887,8 +993,6 @@ def main():
             config = load_config(args.config)
             if args.command == 'settings':
                 settings(args.config, config)
-            elif args.command == 'offers':
-                browse_offers(args, config)
             else:
                 if args.command == 'check':
                     config['auth'] = saved_auth(config, args.coordinator)
