@@ -367,7 +367,7 @@ def message(order, state, initial=False, name='RoboSats'):
         return (f'{name} #{order} · Waiting for the seller to lock your purchased sats in escrow.\n'
                 'Your payout invoice is accepted. No action needed from you yet.')
     if state['status'] == 14:
-        return f'✅ {name} #{order} · Trade completed successfully'
+        return f'{name} #{order} · Trade completed successfully ✅'
     prefix = 'Monitoring started' if initial else 'Order changed'
     text = f'{prefix}: {name} #{order}\n{LABELS[state["status"]]}'
     if state['escrow_locked']:
