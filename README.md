@@ -92,6 +92,13 @@ After taking an offer through Telegram, open RoboSats on your computer. Select t
 
 Keep the RoboSats order available for your first live trade. If Telegram is delayed or a trade action has an uncertain result, check the order in RoboSats before retrying.
 
+<p>
+  <a href="assets/screenshots/lightning-payout-setup.png"><img src="assets/screenshots/lightning-payout-setup.png" width="280" alt="Continue on phone and set up a Lightning payout from the bot chat"></a>
+  <a href="assets/screenshots/lightning-invoice-confirmation.jpg"><img src="assets/screenshots/lightning-invoice-confirmation.jpg" width="280" alt="Confirm a Lightning payout invoice and its routing budget in Telegram"></a>
+</p>
+
+Set up your Lightning payout on your phone, then confirm the invoice and routing budget. Screenshots show an earlier version of the escrow status wording.
+
 ### Chat with the seller in Telegram
 
 Unlock your Garage on the computer to use seller chat and payout, then continue on your phone. When RoboSats has locked the seller’s escrow and accepted your payout invoice, the bot can open seller chat. You can keep messaging after marking the payment as sent while you wait for release.
