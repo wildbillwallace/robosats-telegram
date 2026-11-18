@@ -666,6 +666,8 @@ class MobileTrade:
                 buttons.append({'text': 'Confirm Sent', 'callback_data': f'fiat:{self.order_id}'})
         if status == 10:
             text = f'{self.name} #{self.order_id} · Payment marked sent. Waiting for the seller to release escrow.'
+        if status == 14:
+            text = f'✅ {self.name} #{self.order_id} · Trade completed successfully'
         message = {'text': text}
         if buttons:
             message['reply_markup'] = {'inline_keyboard': [[button] for button in buttons]}
