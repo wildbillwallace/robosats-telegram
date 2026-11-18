@@ -363,6 +363,9 @@ def telegram(s, cfg, message):
         raise MonitorError('Telegram connection failed; notification remains queued.') from None
 
 def message(order, state, initial=False, name='RoboSats'):
+    if state['status'] == 7:
+        return (f'{name} #{order} · Waiting for the seller to lock your purchased sats in escrow.\n'
+                'Your payout invoice is accepted. No action needed from you yet.')
     if state['status'] == 14:
         return f'✅ {name} #{order} · Trade completed successfully'
     prefix = 'Monitoring started' if initial else 'Order changed'

@@ -648,6 +648,9 @@ class MobileTrade:
         status = row.get('status')
         text = f'{self.name} #{self.order_id} · {row.get("status_message", "Check current order state")}'
         buttons = []
+        if status == 7:
+            text = (f'{self.name} #{self.order_id} · Waiting for the seller to lock your purchased sats in escrow.\n'
+                    'Your payout invoice is accepted. No action needed from you yet.')
         if status in {6, 8}:
             try:
                 self.invoice_size(row, 0)
