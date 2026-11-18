@@ -26,6 +26,13 @@ class BridgeError(Exception):
     pass
 
 
+def telegram_bot_id(cfg):
+    match = re.fullmatch(r'(\d+):[A-Za-z0-9_-]+', cfg.get('bot', ''))
+    if match:
+        return match[1]
+    raise BridgeError('Invalid Telegram bot configuration.')
+
+
 class NostrChat:
     def __init__(self, cfg, key, order, relay):
         self.cfg, self.key, self.order, self.relay = cfg, key, order, relay
@@ -158,11 +165,9 @@ class ChatBridge:
         self.chat_id = int(cfg['chat'])
         if self.chat_id <= 0:
             raise BridgeError('Chat bridge requires your private Telegram bot chat.')
-        bot_id = re.fullmatch(r'(\d+):[A-Za-z0-9_-]+', cfg['bot'])
-        if not bot_id:
-            raise BridgeError('Invalid Telegram bot configuration.')
+        bot_id = telegram_bot_id(cfg)
         try:
-            self.lock = lock_file(Path(directory) / f'bridge-{bot_id[1]}.lock')
+            self.lock = lock_file(Path(directory) / f'bridge-{bot_id}.lock')
         except BlockingIOError:
             raise BridgeError('Another monitor is using this bot for chat replies.') from None
         try:

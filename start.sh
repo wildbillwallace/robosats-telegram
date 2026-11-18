@@ -2,6 +2,18 @@
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
+node_version_check='process.exit(Number(process.versions.node.split(".")[0]) < 22 ? 1 : 0)'
+if ! node -e "$node_version_check" 2>/dev/null; then
+    nvm_script="${NVM_DIR:-$HOME/.nvm}/nvm.sh"
+    if [[ -s "$nvm_script" ]]; then
+        set +u
+        if source "$nvm_script" --no-use; then
+            nvm use --silent default >/dev/null || true
+        fi
+        set -u
+    fi
+fi
+
 missing=()
 for tool in python3 node npm gpg curl; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -14,7 +26,7 @@ if (( ${#missing[@]} > 0 )); then
     exit 1
 fi
 if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 10))' ||
-   ! node -e 'process.exit(Number(process.versions.node.split(".")[0]) < 22 ? 1 : 0)'; then
+   ! node -e "$node_version_check"; then
     printf 'Use Python 3.10 or newer and Node.js 22 or newer.\n' >&2
     exit 1
 fi
