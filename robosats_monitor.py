@@ -388,8 +388,8 @@ def flush(state, path, sender):
 
 def poll_trade_updates(bridge, active, peer_key, participants):
     try:
-        bridge.poll_messages(active, peer_key, participants)
-        bridge.announce_seller_chat(active, peer_key, participants)
+        if bridge.poll_messages(active, peer_key, participants) is not False:
+            bridge.announce_seller_chat(active, peer_key, participants)
     except BridgeError as exc:
         print(str(exc), flush=True)
 
@@ -470,7 +470,8 @@ def run(args, cfg, bridge=None):
                         peer_key = poll_chat(cfg, args.order, peer, state, initial=state['chat_baseline'],
                                              bridge=bridge, forward=not (bridge and bridge.nostr and participants))
                         state['chat_baseline'] = False
-                        state.pop('chat_error', None)
+                        if state.pop('chat_error', None):
+                            print('Coordinator chat checks recovered.', flush=True)
                     except (MonitorError, BridgeError) as exc:
                         print(str(exc), flush=True)
                         state['chat_error'] = state.get('chat_error', 0) + 1
@@ -485,7 +486,8 @@ def run(args, cfg, bridge=None):
                     if bridge and bridge.nostr and participants:
                         try:
                             bridge.poll_nostr(participants, state, lambda: save(statepath, state))
-                            state.pop('nostr_error', None)
+                            if state.pop('nostr_error', None):
+                                print('Nostr chat checks recovered.', flush=True)
                         except BridgeError as exc:
                             print(str(exc), flush=True)
                             state['nostr_error'] = state.get('nostr_error', 0) + 1

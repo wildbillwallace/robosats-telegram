@@ -162,6 +162,7 @@ class ChatBridge:
         self.seller_chat_announced = False
         self.started = math.floor(time.time())
         self.offset = None
+        self.poll_error = None
         self.chat_id = int(cfg['chat'])
         if self.chat_id <= 0:
             raise BridgeError('Chat bridge requires your private Telegram bot chat.')
@@ -221,9 +222,19 @@ class ChatBridge:
         params = {'timeout': 0, 'allowed_updates': update_types}
         if self.offset is not None:
             params['offset'] = self.offset
-        updates = self.telegram_call('getUpdates', params)
-        if not isinstance(updates, list):
-            raise BridgeError('Unexpected Telegram update response.')
+        try:
+            updates = self.telegram_call('getUpdates', params)
+            if not isinstance(updates, list):
+                raise BridgeError('Unexpected Telegram update response.')
+        except BridgeError as exc:
+            reason = str(exc)
+            if reason != self.poll_error:
+                print(f'{reason} Retrying on the next check.', flush=True)
+            self.poll_error = reason
+            return False
+        if self.poll_error is not None:
+            print('Telegram connection restored. The bridge is listening again.', flush=True)
+            self.poll_error = None
         for update in updates:
             self.offset = update['update_id'] + 1
             callback = update.get('callback_query')

@@ -1,3 +1,5 @@
+from contextlib import redirect_stdout
+from io import StringIO
 import shutil
 import subprocess
 from tempfile import TemporaryDirectory
@@ -9,6 +11,25 @@ from robosats_monitor import poll_trade_updates
 
 
 class BridgeTests(unittest.TestCase):
+    def test_trade_poll_logs_one_failure_and_recovers_on_an_empty_poll(self):
+        failure = 'Telegram chat bridge connection failed.'
+        tg = Mock(side_effect=[{'url': ''}, BridgeError(failure), BridgeError(failure), [], [], {}])
+        output = StringIO()
+        with TemporaryDirectory() as directory, redirect_stdout(output):
+            bridge = ChatBridge({'chat': '123', 'bot': '555:test'}, 42, 'Temple',
+                                directory, Mock(), tg, Mock())
+            with bridge.lock:
+                poll_trade_updates(bridge, True, 'api-key', None)
+                poll_trade_updates(bridge, True, 'api-key', None)
+                self.assertFalse(bridge.seller_chat_announced)
+                poll_trade_updates(bridge, False, None, None)
+                poll_trade_updates(bridge, True, 'api-key', None)
+                self.assertTrue(bridge.seller_chat_announced)
+        self.assertEqual(output.getvalue().splitlines(), [
+            f'{failure} Retrying on the next check.',
+            'Telegram connection restored. The bridge is listening again.',
+        ])
+
     def test_seller_chat_notice_requires_active_order_and_chat_route(self):
         for peer_key, participants in [('api-key', None), (None, ('own', 'peer'))]:
             with self.subTest(peer_key=peer_key), TemporaryDirectory() as directory:
