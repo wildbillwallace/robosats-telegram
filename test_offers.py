@@ -5,12 +5,47 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
-from robosats_bridge import BridgeError
+from robosats_bridge import BridgeError, TelegramConnectionError
 from robosats_mobile import MobileOffers
 from robosats_offers import BUY, book, bond_text, OfferBrowser, run_offer_browser
 
 
 class OfferTests(TestCase):
+    def test_startup_recovers_from_connection_failures_at_each_telegram_step(self):
+        for failing_method in ('getWebhookInfo', 'setMyCommands', 'setChatMenuButton', 'sendMessage'):
+            with self.subTest(method=failing_method):
+                failures = 0
+
+                def telegram(cfg, method, params):
+                    nonlocal failures
+                    if method == failing_method and failures < 2:
+                        failures += 1
+                        raise TelegramConnectionError('Temporary disconnect')
+                    if method == 'getWebhookInfo':
+                        return {'url': ''}
+                    if method == 'getUpdates':
+                        raise KeyboardInterrupt
+                    return True
+
+                output = StringIO()
+                with TemporaryDirectory() as directory, redirect_stdout(output):
+                    with patch('robosats_offers.time.sleep') as sleep, self.assertRaises(KeyboardInterrupt):
+                        run_offer_browser({'chat': '1', 'bot': '99:test', 'port': 9050}, directory,
+                                          {'temple': ('Temple', 'http://fixture.onion')},
+                                          Mock(), lambda port: port, telegram)
+                self.assertEqual(sleep.call_count, 2)
+                self.assertEqual(output.getvalue().count('Retrying in 5 seconds'), 1)
+                self.assertIn('Telegram connection restored.', output.getvalue())
+                self.assertIn('Bridge ready.', output.getvalue())
+
+    def test_startup_still_stops_for_a_competing_listener(self):
+        telegram = Mock(side_effect=BridgeError('Telegram reports a competing bot listener or webhook.'))
+        with TemporaryDirectory() as directory, patch('robosats_offers.time.sleep') as sleep:
+            with self.assertRaisesRegex(BridgeError, 'competing'):
+                run_offer_browser({'chat': '1', 'bot': '99:test', 'port': 9050}, directory,
+                                  {'temple': ('Temple', 'http://fixture.onion')}, Mock(), lambda port: port, telegram)
+        sleep.assert_not_called()
+
     def test_startup_sends_main_buttons_without_a_menu_tap(self):
         get = Mock()
         send = Mock()

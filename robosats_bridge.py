@@ -26,6 +26,10 @@ class BridgeError(Exception):
     pass
 
 
+class TelegramConnectionError(BridgeError):
+    pass
+
+
 def telegram_bot_id(cfg):
     match = re.fullmatch(r'(\d+):[A-Za-z0-9_-]+', cfg.get('bot', ''))
     if match:

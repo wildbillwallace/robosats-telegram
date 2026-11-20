@@ -17,7 +17,7 @@ from urllib.parse import urlencode
 import time
 import requests
 from robosats_auth import decode_garage_key, garage_authorization, garage_robot_token, robot_authorization
-from robosats_bridge import BridgeError, ChatBridge, NostrChat, close_keys, open_keys
+from robosats_bridge import BridgeError, ChatBridge, NostrChat, TelegramConnectionError, close_keys, open_keys
 from robosats_platform import keep_awake, lock_file, protect_settings, settings_directory, unprotect_settings
 
 ONION = 'http://ngdk7ocdzmz5kzsysa3om6du7ycj2evxp2f2olfkyq37htx3gllwp2yd.onion'
@@ -553,7 +553,7 @@ def bridge_telegram(cfg, method, params):
     except (requests.RequestException, ValueError):
         if is_ack:
             return None
-        raise BridgeError('Telegram chat bridge connection failed.') from None
+        raise TelegramConnectionError('Telegram chat bridge connection failed.') from None
 
 
 def bridge_chat_post(cfg, payload):

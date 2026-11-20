@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import time
 
-from robosats_bridge import BridgeError, telegram_bot_id
+from robosats_bridge import BridgeError, TelegramConnectionError, telegram_bot_id
 from robosats_platform import keep_awake, lock_file
 
 
@@ -216,6 +216,23 @@ class OfferBrowser:
         self.send(description, [[{'text': BROWSE_OFFERS_LABEL, 'callback_data': 'offers:0'}]])
 
 
+def retry_telegram_connection(request):
+    disconnected = False
+    while True:
+        try:
+            result = request()
+        except TelegramConnectionError:
+            if not disconnected:
+                print('Telegram connection failed while opening bridge controls. Retrying in 5 seconds. Ctrl+C stops.',
+                      flush=True)
+            disconnected = True
+            time.sleep(5)
+            continue
+        if disconnected:
+            print('Telegram connection restored. Continuing to open bridge controls.', flush=True)
+        return result
+
+
 def run_offer_browser(cfg, directory, coordinators, get, tor_port, telegram, make_browser=OfferBrowser):
     chat = int(cfg['chat'])
     bot_id = telegram_bot_id(cfg)
@@ -227,16 +244,17 @@ def run_offer_browser(cfg, directory, coordinators, get, tor_port, telegram, mak
         raise BridgeError('Stop the other Telegram chat monitor before browsing offers.') from None
     with lock:
         cfg['port'] = tor_port(cfg['port'])
-        hook = telegram(cfg, 'getWebhookInfo', {})
+        hook = retry_telegram_connection(lambda: telegram(cfg, 'getWebhookInfo', {}))
         if not isinstance(hook, dict) or hook.get('url'):
             raise BridgeError('Telegram offer browsing requires a bot available for polling.')
         menu_enabled = False
         try:
-            telegram(cfg, 'setMyCommands', {
+            retry_telegram_connection(lambda: telegram(cfg, 'setMyCommands', {
                 'scope': {'type': 'chat', 'chat_id': chat},
                 'commands': [{'command': 'menu', 'description': 'Show bridge controls'}],
-            })
-            telegram(cfg, 'setChatMenuButton', {'chat_id': chat, 'menu_button': {'type': 'commands'}})
+            }))
+            retry_telegram_connection(lambda: telegram(
+                cfg, 'setChatMenuButton', {'chat_id': chat, 'menu_button': {'type': 'commands'}}))
             menu_enabled = True
         except BridgeError:
             print('Could not set Telegram’s Menu button. You can still send /menu in your bot chat.', flush=True)
@@ -251,12 +269,13 @@ def run_offer_browser(cfg, directory, coordinators, get, tor_port, telegram, mak
             if hasattr(browser, 'chat_enabled') and not browser.chat_enabled:
                 status += '\nUnlock your Garage Key on the computer for robot selection, trade chat, and payout.'
             if menu_enabled:
-                telegram(cfg, 'sendMessage', {'chat_id': chat,
-                                              'text': status + '\nUse Menu → Show bridge controls to reopen the buttons.',
-                                              'reply_markup': {'remove_keyboard': True}})
-                browser.send(BRIDGE_MENU_TITLE, buttons)
+                retry_telegram_connection(lambda: telegram(cfg, 'sendMessage', {
+                    'chat_id': chat,
+                    'text': status + '\nUse Menu → Show bridge controls to reopen the buttons.',
+                    'reply_markup': {'remove_keyboard': True}}))
+                retry_telegram_connection(lambda: browser.send(BRIDGE_MENU_TITLE, buttons))
             else:
-                browser.send(status, buttons)
+                retry_telegram_connection(lambda: browser.send(status, buttons))
             print('Bridge ready. Continue in your private Telegram bot chat. Ctrl+C stops.', flush=True)
             offset = None
             poll_error = None
